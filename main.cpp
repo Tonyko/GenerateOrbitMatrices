@@ -1,88 +1,42 @@
 #include<iostream>
-#include<z3++.h>
 #include<vector>
 
+#include "libraryZ3.hpp"
+
 using namespace std;
-using namespace z3;
 
-expr mk_and(expr_vector args) {
-    vector<Z3_ast> array;
+int n = 15;
+int k = 6;
+int l = 1;
+int m = 3;
+int p = 3;
+int f = 3;
+int o = (n - f) / p;
 
-    for (int i = 0; i < args.size(); i++)
-      array.push_back(args[i]);
+int isoConst = 5;
 
-    return to_expr(args.ctx(), Z3_mk_and(args.ctx(), array.size(), &(array[0])));
-}
-
-expr mk_or(expr_vector args) {
-    vector<Z3_ast> array;
-
-    for (int i = 0; i < args.size(); i++)
-      array.push_back(args[i]);
-
-    return to_expr(args.ctx(), Z3_mk_or(args.ctx(), array.size(), &(array[0])));
-}
-
-expr mk_add(expr_vector args) {
-    vector<Z3_ast> array;
-
-    for (int i = 0; i < args.size(); i++)
-      array.push_back(args[i]);
-
-    return to_expr(args.ctx(), Z3_mk_add(args.ctx(), array.size(), &(array[0])));
-}
-
-vector<vector<int>> solveLinearEquations(vector<vector<int>> linEquations, vector<int> vect, int from, int to){
-    context c;
-    const unsigned N = linEquations[0].size();
-    expr_vector x(c);
-    for (unsigned i = 0; i < N; i++) { 
-        std::stringstream x_name; 
-        x_name << "x_" << i;
-        x.push_back(c.int_const(x_name.str().c_str()));
-    }
-
-    solver s(c);
-
-    for (unsigned i = 0; i < N; i++) {
-        s.add(x[i] >= from);
-        s.add(x[i] <= to);
-    }
-
-    for (int i = 0; i < linEquations.size(); i++) {
-        expr_vector linVector(c);
-        for (int j = 0; j< linEquations[i].size(); j++) {
-            if (linEquations[i][j] != 0) {
-                linVector.push_back(linEquations[i][j] * x[j]);
-            }
-        }
-        s.add(mk_add(linVector) == vect[i]);
-    }
-
-    vector<vector<int>> solutions;
-
-    while(true) {
-        if (s.check() == sat) {
-            model m = s.get_model();
-            expr_vector ve(c);
-            vector<int> sol; sol.clear();
-            for (unsigned i = 0; i < N; i++) {
-                ve.push_back(x[i] != m.eval(x[i]));
-                int val;
-                Z3_get_numeral_int(c, m.eval(x[i]), &val);
-                sol.push_back(val);
-            }
-            solutions.push_back(sol); 
-            s.add(mk_or(ve));
-        }
-        else {
-            break; 
-        }
-    }
-    return solutions;
-}
+vector<vector<int>> linEqFixSolution;
+vector<vector<int>> linEqOrbitSolution0;
+vector<vector<int>> linEqOrbitSolution2;
 
 int main() {
+    cout << "Program start " << n << " " << k << " " << l << " " << m << " " << p << " " << f << endl;
+    cout << "Number of fixed points and orbits: " << f << " " << o << endl;
+    cout << "Size of orbit matrix: " << (f + o) << "x" << (f + o) << endl;
+
+    // Create and solve linear equations for fixed rows
+    // x0 + x1 = f
+    // y0 + y1 = o
+    // x1 + p*y1 = k
+
+    vector<vector<int>> linearSystem {{1, 1, 0, 0}, {0, 0, 1, 1}, {0, 1, 0, p}};
+    vector<int> vector {f, o, k};
+
+    // filter: matrix B must have 0 -> x0 >= 1, is graph with zero's on diagonalise
+
+    linEqFixSolution = solveFixedEq(linearSystem, vector, 4).filter(x => x(0) != 0)
+
+
     vector<vector<int>> linearSystem {{1,1,0,0,0,0}, {0,0,1,1,1,1}, {0,1,0,1,2,3}, {0,3,0,1,4,9}};
     vector<int> vect{3,4,6,12}; 
     vector<vector<int>> solution = solveLinearEquations(linearSystem, vect, 0, 3);
