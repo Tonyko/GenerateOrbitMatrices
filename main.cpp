@@ -2,9 +2,11 @@
 #include<vector>
 
 #include "libraryZ3.hpp"
+#include "math.hpp"
 
 using namespace std;
 
+// strongly regular graph parameters
 int n = 15;
 int k = 6;
 int l = 1;
@@ -19,8 +21,15 @@ vector<vector<int>> linEqFixSolution;
 vector<vector<int>> linEqOrbitSolution0;
 vector<vector<int>> linEqOrbitSolution2;
 
+// const
+vector<vector<int>> iMatrix;
+vector<vector<int>> jMatrix;
+vector<int> nMatrix;
+vector<int> lambdaSets;
+vector<int> muSets;
+
 // from Behbahani thesis
-void solveLinearEquations() {
+void solve_linear_equations() {
     {
         // Create and solve linear equations for fixed rows using z3 library
         // x0 + x1 = f
@@ -63,15 +72,51 @@ void solveLinearEquations() {
     }
 }
 
+void const_matrices() {
+    for (int i=0; i<f+o; i++) {
+        vector<int> tmpVector;
+        for(int j=0; j<f+o; j++) {
+            if (i==j) tmpVector.push_back(k - m);
+            else tmpVector.push_back(0);
+        }
+        iMatrix.push_back(tmpVector);
+    }
+
+    for (int i=0; i<f+o; i++) {
+        vector<int> tmpVector;
+        for(int j=0; j<f+o; j++) {
+            if (j<f) tmpVector.push_back(1);
+            else tmpVector.push_back(p);
+        }
+        jMatrix.push_back(tmpVector);
+    }    
+
+    nMatrix = jMatrix[0];
+
+    int i = l % p;
+    while (i <= n) {
+      lambdaSets.push_back(i);
+      i += p;
+    }
+
+    int ii = m % p;
+    while (ii <= n) {
+      muSets.push_back(ii);
+      ii += p;
+    }
+}
+
 int main() {
     cout << "Program start " << n << " " << k << " " << l << " " << m << " " << p << " " << f << endl;
     cout << "Number of fixed points and orbits: " << f << " " << o << endl;
     cout << "Size of orbit matrix: " << (f + o) << "x" << (f + o) << endl;
 
-    solveLinearEquations();
+    solve_linear_equations();
 
     cout << "Number of solutions on fixed rows: " << linEqFixSolution.size() << endl;
     cout << "Number of solutions on orbit rows: " << linEqOrbitSolution0.size() << " " << linEqOrbitSolution2.size() << endl;
+
+    const_matrices();
 
     return 0;
 }
