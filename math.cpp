@@ -7,7 +7,7 @@ using namespace std;
 
 void print_matrix(vector<vector<int>> matrix) {
     for (int i=0; i<matrix.size(); i++) {
-        for (int j=0; j<matrix.size(); j++) {
+        for (int j=0; j<matrix[i].size(); j++) {
             cout << matrix[i][j] << " ";
         }
         cout << endl;
@@ -39,4 +39,33 @@ vector<vector<int>> multiply_const_matrix(vector<vector<int>> matrix, int c) {
     }
 
     return tmpMatrix;
+}
+
+vector<vector<int>> create_matrix(int size, int c) {
+    vector<vector<int>> tmpMatrix;
+    for (int i=0; i<size; i++) {
+        vector<int> tmpVector;
+        for (int j=0; j<size; j++) {
+            tmpVector.push_back(c);
+        }
+        tmpMatrix.push_back(tmpVector);
+    }
+
+    return tmpMatrix;
+}
+
+vector<int> create_vector(int size) {
+    vector<int> tmpVector;
+    for(int i=0; i<size; i++) tmpVector.push_back(i);
+
+    return tmpVector;
+}
+
+vector<vector<int>> create_indexes(int size) {
+    vector<vector<int>> tmpIndexes;
+    vector<int> tmpVector;
+    for(int i=0; i<size; i++) tmpVector.push_back(i);
+    tmpIndexes.push_back(tmpVector);
+
+    return tmpIndexes;
 }

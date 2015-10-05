@@ -21,6 +21,8 @@ vector<vector<int>> linEqFixSolution;
 vector<vector<int>> linEqOrbitSolution0;
 vector<vector<int>> linEqOrbitSolution2;
 
+vector<vector<int>> solutions;
+
 // const
 vector<vector<int>> iMatrix;
 vector<vector<int>> jMatrix;
@@ -110,6 +112,82 @@ void const_matrices() {
     }
 }
 
+vector<vector<int>> fix_col_permutation(vector<int> row, vector<vector<int>> indexes) {
+    vector<vector<int>> tmpMatrix;
+    for (int i=0; i<indexes.size(); i++) {
+        vector<int> list1;
+        vector<int> list2;
+        for (int j=0; j<indexes[i].size(); j++) {
+            if (row[indexes[i][j]] == 0) list1.push_back(indexes[i][j]);
+            if (row[indexes[i][j]] == 1) list2.push_back(indexes[i][j]);
+        }
+        if (!list1.empty()) tmpMatrix.push_back(list1);
+        if (!list2.empty()) tmpMatrix.push_back(list2);
+    }
+
+    return tmpMatrix;
+}
+
+vector<vector<int>> orbit_col_permutation(vector<int> row, vector<vector<int>> indexes) {
+    vector<vector<int>> tmpMatrix;
+    for (int i=0; i<indexes.size(); i++) {
+        vector<int> list1;
+        vector<int> list2;
+        vector<int> list3;
+        vector<int> list4;
+        for (int j=0; j<indexes[i].size(); j++) {
+            if (row[indexes[i][j]] == 0) list1.push_back(indexes[i][j]);
+            if (row[indexes[i][j]] == 1) list2.push_back(indexes[i][j]);
+            if (row[indexes[i][j]] == 2) list3.push_back(indexes[i][j]);
+            if (row[indexes[i][j]] == 3) list4.push_back(indexes[i][j]);
+        }
+        if (!list1.empty()) tmpMatrix.push_back(list1);
+        if (!list2.empty()) tmpMatrix.push_back(list2);
+        if (!list3.empty()) tmpMatrix.push_back(list3);
+        if (!list4.empty()) tmpMatrix.push_back(list4);
+    }
+
+    return tmpMatrix;
+}
+
+
+void generate_fix_matrices(vector<vector<int>> matrix, int row, int fixDegree, int orbitDegree, vector<vector<int>> fixIndexes, vector<vector<int>> orbitIndexes) {
+    if (row == 0) {
+        vector<int> newRow;
+        for (int i=0; i<(f-fixDegree); i++) newRow.push_back(0);
+        for (int i=0; i<fixDegree; i++) newRow.push_back(1);
+        for (int i=0; i<(o-orbitDegree); i++) newRow.push_back(0);
+        for (int i=0; i<(orbitDegree); i++) newRow.push_back(1);
+
+        matrix[row] = newRow;
+
+        // transpose matrix
+        for(int i=row+1; i<f; i++) matrix[i][row] = matrix[row][i];
+        for(int i=f; i<f+o; i++) {
+            if (matrix[row][i] == 1) matrix[i][row] = p;
+            else matrix[i][row] = 0;
+        }
+        
+        if (row + 1 == f) {
+            vector<int> fixRow(newRow.begin(), newRow.begin() + f);
+            vector<int> orbitRow(newRow.begin() + f, newRow.end());
+            // fixme
+            // generateOrbitMatrix(newMatrix, f, perColGroups)
+        }
+        else {
+            vector<int> fixRow(newRow.begin(), newRow.begin() + f);
+            vector<int> orbitRow(newRow.begin() + f, newRow.end());
+            for (int i=0; i<linEqFixSolution.size(); i++) {
+                generate_fix_matrices(matrix, row + 1, linEqFixSolution[i][1], linEqFixSolution[i][3], fix_col_permutation(fixRow, fixIndexes),
+                 fix_col_permutation(orbitRow, orbitIndexes));
+            }            
+        }
+    }
+    else {
+        // print_matrix(matrix);
+    }
+}
+
 int main() {
     cout << "Program start " << n << " " << k << " " << l << " " << m << " " << p << " " << f << endl;
     cout << "Number of fixed points and orbits: " << f << " " << o << endl;
@@ -121,6 +199,10 @@ int main() {
     cout << "Number of solutions on orbit rows: " << linEqOrbitSolution0.size() << " " << linEqOrbitSolution2.size() << endl;
 
     const_matrices();
+
+    for (int i=0; i<linEqFixSolution.size(); i++) {
+        generate_fix_matrices(create_matrix(f + o, 5), 0, linEqFixSolution[i][1], linEqFixSolution[i][3], create_indexes(f), create_indexes(o));
+    }
 
     return 0;
 }
