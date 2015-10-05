@@ -24,6 +24,7 @@ vector<vector<int>> linEqOrbitSolution2;
 // const
 vector<vector<int>> iMatrix;
 vector<vector<int>> jMatrix;
+vector<vector<int>> constMatrix;
 vector<int> nMatrix;
 vector<int> lambdaSets;
 vector<int> muSets;
@@ -72,6 +73,7 @@ void solve_linear_equations() {
     }
 }
 
+// create constant matrices
 void const_matrices() {
     for (int i=0; i<f+o; i++) {
         vector<int> tmpVector;
@@ -90,6 +92,8 @@ void const_matrices() {
         }
         jMatrix.push_back(tmpVector);
     }    
+
+    constMatrix = addition_matrix(iMatrix, multiply_const_matrix(jMatrix, m));
 
     nMatrix = jMatrix[0];
 
