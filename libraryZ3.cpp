@@ -32,7 +32,7 @@ expr mk_add(expr_vector args) {
     return to_expr(args.ctx(), Z3_mk_add(args.ctx(), array.size(), &(array[0])));
 }
 
-vector<vector<int>> solveLinearEquations(vector<vector<int>> linEquations, vector<int> vect, int from, int to){
+vector<vector<int>> solve_linear_equations(vector<vector<int>> linEquations, vector<int> vect, int from, int to){
     context c;
     const unsigned N = linEquations[0].size();
     expr_vector x(c);
@@ -60,6 +60,122 @@ vector<vector<int>> solveLinearEquations(vector<vector<int>> linEquations, vecto
             s.add(mk_add(linVector) == vect[i]);
         }
     }
+
+    vector<vector<int>> solutions;
+
+    while(true) {
+        if (s.check() == sat) {
+            model m = s.get_model();
+            expr_vector ve(c);
+            vector<int> sol; sol.clear();
+            for (unsigned i = 0; i < N; i++) {
+                ve.push_back(x[i] != m.eval(x[i]));
+                int val;
+                Z3_get_numeral_int(c, m.eval(x[i]), &val);
+                sol.push_back(val);
+            }
+            solutions.push_back(sol); 
+            s.add(mk_or(ve));
+        }
+        else {
+            break; 
+        }
+    }
+    return solutions;
+}
+
+vector<vector<int>> solve_linear_equations_with_constraints_fix(vector<vector<int>> linEquations, vector<int> vect, int from, int to, int row, int f, int fixDegree, int orbitDegree) {
+    context c;
+    const unsigned N = linEquations[0].size();
+    expr_vector x(c);
+    for (unsigned i = 0; i < N; i++) { 
+        std::stringstream x_name; 
+        x_name << "x_" << i;
+        x.push_back(c.int_const(x_name.str().c_str()));
+    }
+
+    solver s(c);
+
+    for (unsigned i = 0; i < N; i++) {
+        s.add(x[i] >= from);
+        s.add(x[i] <= to);
+    }
+
+    for (int i = 0; i < linEquations.size(); i++) {
+        expr_vector linVector(c);
+        for (int j = 0; j< linEquations[i].size(); j++) {
+            if (linEquations[i][j] != 0) {
+                linVector.push_back(linEquations[i][j] * x[j]);
+            }
+        }
+        if (!linVector.empty()) {
+            s.add(mk_add(linVector) == vect[i]);
+        }
+    }
+
+    s.add(x[0] == 0);
+
+    expr_vector fixVector(c);
+    for (int i=0; i<f-row; i++) fixVector.push_back(x[i]);
+    s.add(mk_add(fixVector) == fixDegree);
+
+    expr_vector orbitVector(c);
+    for (int i=f-row; i<N; i++) orbitVector.push_back(x[i]);
+    s.add(mk_add(orbitVector) == orbitDegree);
+
+    vector<vector<int>> solutions;
+
+    while(true) {
+        if (s.check() == sat) {
+            model m = s.get_model();
+            expr_vector ve(c);
+            vector<int> sol; sol.clear();
+            for (unsigned i = 0; i < N; i++) {
+                ve.push_back(x[i] != m.eval(x[i]));
+                int val;
+                Z3_get_numeral_int(c, m.eval(x[i]), &val);
+                sol.push_back(val);
+            }
+            solutions.push_back(sol); 
+            s.add(mk_or(ve));
+        }
+        else {
+            break; 
+        }
+    }
+    return solutions;
+}
+
+vector<vector<int>> solve_linear_equations_with_constraints_orbit(vector<vector<int>> linEquations, vector<int> vect, int from, int to, int value){
+    context c;
+    const unsigned N = linEquations[0].size();
+    expr_vector x(c);
+    for (unsigned i = 0; i < N; i++) { 
+        std::stringstream x_name; 
+        x_name << "x_" << i;
+        x.push_back(c.int_const(x_name.str().c_str()));
+    }
+
+    solver s(c);
+
+    for (unsigned i = 0; i < N; i++) {
+        s.add(x[i] >= from);
+        s.add(x[i] <= to);
+    }
+
+    for (int i = 0; i < linEquations.size(); i++) {
+        expr_vector linVector(c);
+        for (int j = 0; j< linEquations[i].size(); j++) {
+            if (linEquations[i][j] != 0) {
+                linVector.push_back(linEquations[i][j] * x[j]);
+            }
+        }
+        if (!linVector.empty()) {
+            s.add(mk_add(linVector) == vect[i]);
+        }
+    }
+
+    s.add(x[0] == value);
 
     vector<vector<int>> solutions;
 

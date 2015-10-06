@@ -40,7 +40,7 @@ void solve_linear_equations() {
         // x1 + p*y1 = k
         vector<vector<int>> linearSystem {{1, 1, 0, 0}, {0, 0, 1, 1}, {0, 1, 0, p}};
         vector<int> vect {f, o, k};
-        vector<vector<int>> tmpSolutions = solveLinearEquations(linearSystem, vect, 0, max(f, o));
+        vector<vector<int>> tmpSolutions = solve_linear_equations(linearSystem, vect, 0, max(f, o));
 
         // filter: matrix must have 0 on diagonalise -> x0 >= 1
         for (int i=0; i<tmpSolutions.size(); i++) {
@@ -59,7 +59,7 @@ void solve_linear_equations() {
         vector<vector<int>> linearSystem = {{1, 1, 0, 0, 0, 0}, {0, 0, 1, 1, 1, 1}, {0, 1, 0, 1, 2, 3}, {0, 3, 0, 1, 4, 9}};
         int s = (k - m) * p + m * p * p + (l - m) * 0 * p;
         vector<int> vect {f, o, k, s / 3};
-        vector<vector<int>> tmpSolutions = solveLinearEquations(linearSystem, vect, 0, max(f, o));
+        vector<vector<int>> tmpSolutions = solve_linear_equations(linearSystem, vect, 0, max(f, o));
 
         // filter: if c_rr = 0 then y0 >0
         for (int i=0; i<tmpSolutions.size(); i++) {
@@ -71,7 +71,7 @@ void solve_linear_equations() {
         vector<vector<int>> linearSystem = {{1, 1, 0, 0, 0, 0}, {0, 0, 1, 1, 1, 1}, {0, 1, 0, 1, 2, 3}, {0, 3, 0, 1, 4, 9}};
         int s = (k - m) * p + m * p * p + (l - m) * 2 * p;
         vector<int> vect {f, o, k, s / 3};
-        linEqOrbitSolution2 = solveLinearEquations(linearSystem, vect, 0, max(f, o));
+        linEqOrbitSolution2 = solve_linear_equations(linearSystem, vect, 0, max(f, o));
     }
 }
 
@@ -151,6 +151,10 @@ vector<vector<int>> orbit_col_permutation(vector<int> row, vector<vector<int>> i
 }
 
 
+void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<int>> indexes) {
+
+}
+
 void generate_fix_matrices(vector<vector<int>> matrix, int row, int fixDegree, int orbitDegree, vector<vector<int>> fixIndexes, vector<vector<int>> orbitIndexes) {
     if (row == 0) {
         vector<int> newRow;
@@ -169,10 +173,8 @@ void generate_fix_matrices(vector<vector<int>> matrix, int row, int fixDegree, i
         }
         
         if (row + 1 == f) {
-            vector<int> fixRow(newRow.begin(), newRow.begin() + f);
             vector<int> orbitRow(newRow.begin() + f, newRow.end());
-            // fixme
-            // generateOrbitMatrix(newMatrix, f, perColGroups)
+            generate_orbit_matrix(matrix, f, fix_col_permutation(orbitRow, orbitIndexes));
         }
         else {
             vector<int> fixRow(newRow.begin(), newRow.begin() + f);
@@ -184,7 +186,99 @@ void generate_fix_matrices(vector<vector<int>> matrix, int row, int fixDegree, i
         }
     }
     else {
-        // print_matrix(matrix);
+        // create lin. equations from matrix equation -> Behbahani
+        // s_ir = mi n_i n_r + (l - m) c_ir n_r
+        // s_ir = sum_k 1 to o {c_ik c_rk n_k}
+        // number of lin. equations = row - 1 (s_12, s13)
+
+        vector<vector<int>> linEquations;
+        vector<int> vect;
+
+        vector<int> tmpSol;
+        int tmpSumFix = 0;
+
+        for (int i=0; i<row; i++) {
+            tmpSol.push_back(matrix[row][i]);
+            tmpSumFix += matrix[row][i];
+        }
+
+        for (int i=0; i<row; i++) {
+            int value = (m * nMatrix[i] * nMatrix[row]) + ((l -m) * nMatrix[row] * matrix[i][row]);
+
+            vector<int> equation;
+            for (int j=0; j<(f+o)-row; j++) equation.push_back(0);
+
+            for (int j=0; j<row; j++) {
+                if (tmpSol[j] == 1) value -= matrix[i][j] * nMatrix[j];
+            }
+
+            for (int j=row; j<f+o; j++) {
+                equation[j - row] = matrix[i][j] * nMatrix[j];
+            }
+
+            vect.push_back(value);
+            linEquations.push_back(equation);
+        }
+
+        vector<vector<int>> sol = solve_linear_equations_with_constraints_fix(linEquations, vect, 0, 1, row, f, fixDegree-tmpSumFix, orbitDegree);
+
+        for (int i=0; i<sol.size(); i++) {
+
+            vector<int> possibleRow;
+            for(int j=0; j<tmpSol.size(); j++) possibleRow.push_back(tmpSol[j]);
+            for(int j=0; j<sol[i].size(); j++) possibleRow.push_back(sol[i][j]);
+
+            int sumFix = tmpSumFix;
+            int sumOrbit = 0;
+
+            bool testSeq = false;
+
+            // test on decreasing sequence
+            for (int j=0; j<fixIndexes.size(); j++) {
+                int num = -1;
+                if (testSeq == true) continue;
+                for (int k=0; k<fixIndexes[j].size(); k++) {
+                    if (fixIndexes[j][k] > row) {
+                        if (possibleRow[fixIndexes[j][k]] >= num) {
+                            num = possibleRow[fixIndexes[j][k]];
+                            sumFix += possibleRow[fixIndexes[j][k]];
+                        }
+                        else testSeq = true;
+                    }
+                }
+            }
+            if (testSeq == true) continue;
+
+            for (int j=0; j<orbitIndexes.size(); j++) {
+                int num = -1;
+                if (testSeq == true) continue;
+                for (int k=0; k<orbitIndexes[j].size(); k++) {
+                    if (orbitIndexes[j][k] > row) {
+                        if (possibleRow[f + orbitIndexes[j][k]] >= num) {
+                            num = possibleRow[f + orbitIndexes[j][k]];
+                            sumFix += possibleRow[f + orbitIndexes[j][k]];
+                        }
+                        else testSeq = true;
+                    }
+                }
+            }
+            if (testSeq == true) continue;
+
+            // transpose matrix
+            matrix[row] = possibleRow;
+            for(int j=row+1; j<f; j++) matrix[j][row] = matrix[row][j];
+            for(int j=f; j<f+o; j++) {
+                if (matrix[row][j] == 1) matrix[j][row] = p;
+                else matrix[j][row] = 0;
+            }
+
+            // lambda/ mu test
+            for (int j=0; j<row; j++) {
+                int count = 0;
+                
+            }
+
+        }
     }
 }
 
