@@ -1,6 +1,13 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <string>
+
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#include <iostream>
+#include <fstream>
 
 #include "libraryZ3.hpp"
 #include "math.hpp"
@@ -8,10 +15,10 @@
 using namespace std;
 
 // strongly regular graph parameters
-int n = 25;
-int k = 12;
-int l = 5;
-int m = 6;
+int n = 49;
+int k = 24;
+int l = 11;
+int m = 12;
 int p = 3;
 int f = 1;
 int o = (n - f) / p;
@@ -562,6 +569,71 @@ void generate_fix_matrices(vector<vector<int>> matrix, int row, int fixDegree, i
     }
 }
 
+void save_matrices() {
+
+    string name =  to_string(n) + "," + to_string(k) + "," + to_string(l) + "," + to_string(m) + "," + to_string(f) + "," + to_string(p);
+    string fold = "matrices/srg(" + name + ")";
+
+    mkdir("matrices", 0777);
+    mkdir(fold.c_str(), 0777);
+
+    string fil1 = fold + "/RAW-solutions(" + name + ").txt";
+    ofstream file;
+    file.open(fil1);
+
+    string fil2 = fold + "/RAW-solutions(GAP)(" + name + ").txt";
+    ofstream file2;
+    file2.open(fil2);
+    file2 << "sol := [";
+
+    vector<vector<vector<int>>> newSolutions;
+    for (int i=0; i<solutions.size(); i++) {
+        vector<vector<int>> tmpMatrix = solutions[i];
+        for (int j=0; j<f; j++) {
+            for (int k=f; k<f+o; k++) {
+                if (tmpMatrix[j][k] == 1) tmpMatrix[j][k] = 3;
+            }
+        }
+        for (int j=f; j<f+o; j++) {
+            for (int k=0; k<f; k++) {
+                if (tmpMatrix[j][k] == 3) tmpMatrix[j][k] = 1;
+            }
+        }
+
+        for (int j=0; j<f+o; j++) {
+            for (int k=0; k<f+o; k++) {
+                file << tmpMatrix[j][k];
+                if (k != f + o - 1) file << " ";
+            }
+            if (j != f + o - 1) file << "; ";
+        }
+        file << "\n";
+        
+        file2 << "[";
+        for (int j=0; j<f+o; j++) {
+            file2 << "[";
+            for (int k=0; k<f+o; k++) {
+                file2 << tmpMatrix[j][k];
+                if (k != f + o - 1) file2 << ", ";
+            }
+            file2 << "]";
+            if (j != f + o - 1) file2 << ", ";
+        }
+        file2 << "]";
+        if (i != solutions.size() - 1) file2 << ", ";
+    }
+    file2 << "];";
+
+    file.close();
+    file2.close();
+
+    string output = fold + "/solutions(" + name + ").txt"; 
+    string output2 = fold + "/number-solutions(" + name + ").txt"; 
+
+    string sage = "sage Test.sage '" + fil2 + "' '" + output + "' '" + output2 + "'";
+    system(sage.c_str());
+}
+
 int main() {
     cout << "Program start " << n << " " << k << " " << l << " " << m << " " << p << " " << f << endl;
     cout << "Number of fixed points and orbits: " << f << " " << o << endl;
@@ -579,6 +651,8 @@ int main() {
     }
 
     cout << "Number of solutions: " << solutions.size() << endl;
+
+    save_matrices();
 
     return 0;
 }
