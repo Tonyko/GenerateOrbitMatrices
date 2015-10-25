@@ -8,20 +8,22 @@
 
 #include <iostream>
 #include <fstream>
+#include <boost/rational.hpp>
 
 #include "libraryZ3.hpp"
 #include "math.hpp"
 
 using namespace std;
+using namespace boost;
 
 // strongly regular graph parameters
-int n = 49;
-int k = 24;
-int l = 11;
-int m = 12;
-int p = 3;
-int f = 1;
-int o = (n - f) / p;
+int n;
+int k;
+int l;
+int m;
+int p;
+int f;
+int o;
 
 int isoConst = 5;
 
@@ -38,6 +40,27 @@ vector<vector<int>> constMatrix;
 vector<int> nMatrix;
 vector<int> lambdaSet;
 vector<int> muSet;
+
+vector<int> next(vector<int> v, int b) {
+  int index=-1;
+  bool t=false;
+  for (int i=0; i<v.size(); i++) {
+    if (v[i] < b-1) {
+      t=true;
+      index=i;
+      break;
+    }
+  }
+  if (index != -1) {
+    fill(v.begin(), v.begin() + index, 0);
+    v[index]++;
+    return v;
+  }
+  else {
+    v.clear();
+    return v;
+  }
+}
 
 // from Behbahani thesis
 void solve_linear_equations() {
@@ -216,6 +239,7 @@ void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<in
     }
 
     vector<vector<int>> sol0 = solve_linear_equations_with_constraints_orbit(linEquations, vect, 0, 3, 0);
+
     for (int i=0; i<sol0.size(); i++) {
         vector<int> possibleRow;
         for (int j=0; j<tmpSol.size(); j++) possibleRow.push_back(tmpSol[j]);
@@ -634,15 +658,59 @@ void save_matrices() {
     system(sage.c_str());
 }
 
-int main() {
-    cout << "Program start " << n << " " << k << " " << l << " " << m << " " << p << " " << f << endl;
-    cout << "Number of fixed points and orbits: " << f << " " << o << endl;
-    cout << "Size of orbit matrix: " << (f + o) << "x" << (f + o) << endl;
+int load_number_solutions() {
+    string name =  to_string(n) + "," + to_string(k) + "," + to_string(l) + "," + to_string(m) + "," + to_string(f) + "," + to_string(p);
+    string fold = "matrices/srg(" + name + ")/number-solutions(" + name + ").txt";
+    string line;
+    ifstream myfile (fold);
+
+    int number;
+
+    if (myfile.is_open()) {
+        getline (myfile,line);
+        number = atoi(line.c_str());
+        
+        myfile.close();
+    }
+
+    return number;
+}
+
+int generate(int nn, int kk, int ll, int mm, int pp, int ff, bool debug) {
+    n = nn;
+    k = kk;
+    l = ll;
+    m = mm;
+    p = pp;
+    f = ff;
+    o = (n - f) / p;
+
+    linEqFixSolution.clear();
+    linEqOrbitSolution0.clear();
+    linEqOrbitSolution2.clear();
+
+    solutions.clear();
+
+    // const
+    iMatrix.clear();
+    jMatrix.clear();
+    constMatrix.clear();
+    nMatrix.clear();
+    lambdaSet.clear();
+    muSet.clear();
+
+    if (debug == true) {
+        cout << "Program start " << n << " " << k << " " << l << " " << m << " " << p << " " << f << endl;
+        cout << "Number of fixed points and orbits: " << f << " " << o << endl;
+        cout << "Size of orbit matrix: " << (f + o) << "x" << (f + o) << endl;
+    }
 
     solve_linear_equations();
 
-    cout << "Number of solutions on fixed rows: " << linEqFixSolution.size() << endl;
-    cout << "Number of solutions on orbit rows: " << linEqOrbitSolution0.size() << " " << linEqOrbitSolution2.size() << endl;
+    if (debug == true) {
+        cout << "Number of solutions on fixed rows: " << linEqFixSolution.size() << endl;
+        cout << "Number of solutions on orbit rows: " << linEqOrbitSolution0.size() << " " << linEqOrbitSolution2.size() << endl;
+    }
 
     const_matrices();
 
@@ -650,9 +718,157 @@ int main() {
         generate_fix_matrices(create_matrix(f + o, 5), 0, linEqFixSolution[i][1], linEqFixSolution[i][3], create_indexes(f), create_indexes(o));
     }
 
-    cout << "Number of solutions: " << solutions.size() << endl;
+    if (debug == true) {
+        cout << "Number of solutions: " << solutions.size() << endl;
+    }
 
     save_matrices();
 
+    return load_number_solutions();
+}
+
+int test() {
+    if (generate(15, 6, 1, 3, 3, 3, false) == 1) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(25, 12, 5, 6, 3, 1, false) == 9) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(25, 12, 5, 6, 3, 4, false) == 4) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(29, 14, 6, 7, 3, 5, false) == 1) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(26, 10, 3, 4, 3, 2, false) == 3) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(26, 10, 3, 4, 3, 8, false) == 0) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(28, 12, 6, 4, 3, 1, false) == 4) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(28, 12, 6, 4, 3, 4, false) == 0) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(28, 12, 6, 4, 3, 7, false) == 0) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(28, 12, 6, 4, 3, 10, false) == 2) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(35, 16, 6, 8, 3, 2, false) == 18) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(35, 16, 6, 8, 3, 5, false) == 3) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(35, 16, 6, 8, 3, 8, false) == 1) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(35, 18, 9, 9, 3, 2, false) == 18) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(35, 18, 9, 9, 3, 5, false) == 3) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(35, 18, 9, 9, 3, 8, false) == 1) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(36, 14, 4, 6, 3, 3, false) == 3) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(36, 14, 4, 6, 3, 6, false) == 0) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(36, 14, 4, 6, 3, 9, false) == 1) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(36, 15, 6, 6, 3, 3, false) == 30) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(36, 15, 6, 6, 3, 6, false) == 4) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+    if (generate(36, 15, 6, 6, 3, 9, false) == 1) cout << "OK" << endl;
+    else cout << "FAIL" << endl;
+
+}
+
+vector<vector<rational<int>>> reducedRowEchelonForm(vector<vector<int>> matrix) {
+    int lead = 0;
+    int rowCount = matrix.size();
+    int colCount = matrix[0].size();
+
+    vector<vector<rational<int>>> newMatrix;
+    for (int i=0; i<matrix.size(); i++) {
+        vector<rational<int>> tmpVect;
+        for (int j=0; j<matrix[i].size(); j++) {
+            tmpVect.push_back(rational<int>(matrix[i][j]));
+        }
+        newMatrix.push_back(tmpVect);
+    }  
+
+    for (int r=0; r<rowCount; r++) {
+        int i=r;
+
+        while (lead < colCount && newMatrix[i][lead] == 0) {
+            i++;
+            if (i == rowCount) {
+                i = r;
+                lead++;
+            }
+        }
+
+        if (lead < colCount) {
+            // swap rows
+            vector<rational<int>> tmp;
+            tmp = newMatrix[i];
+            newMatrix[i] = newMatrix[r];
+            newMatrix[r] = tmp;
+
+            rational<int> lv = newMatrix[r][lead];
+            for (int index=0; index<newMatrix[r].size(); index++) {
+                newMatrix[r][index] /= lv;
+            }
+
+            for (int i=0; i<rowCount; i++) {
+                if (i != r) {
+                    lv = newMatrix[i][lead];
+                    for (int index=0; index<newMatrix[i].size(); index++) {
+                        newMatrix[i][index] -= lv * newMatrix[r][index];
+                    }
+                }
+            }
+            lead++;
+        }
+    }
+
+    return newMatrix;
+}
+
+
+int main() {
+    // generate(15, 6, 1, 3, 3, 3, true);
+    // test();
+    // vector<int> v(2);
+    // while (v.size() != 0) {
+    //    print_vector(v);
+    //    v = next(v, 4);
+    //}
+    vector<vector<int>> matrix {{1, 2, -1, -4}, {2, 3, -1, -11}, {-2, 0, -3, 22}};
+    print_matrix(matrix);
+    vector<vector<rational<int>>> tmp = reducedRowEchelonForm(matrix);
+
+    for (int i=0; i<tmp.size(); i++) {
+        for (int j=0; j<tmp[i].size(); j++) {
+            cout << tmp[i][j] << " ";
+        }
+        cout << endl;
+    }
+
     return 0;
 }
+
+ 

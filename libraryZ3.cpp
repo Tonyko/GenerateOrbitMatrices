@@ -117,11 +117,11 @@ vector<vector<int>> solve_linear_equations_with_constraints_fix(vector<vector<in
 
     expr_vector fixVector(c);
     for (int i=0; i<f-row; i++) fixVector.push_back(x[i]);
-    s.add(mk_add(fixVector) == fixDegree);
+    //s.add(mk_add(fixVector) == fixDegree);
 
     expr_vector orbitVector(c);
     for (int i=f-row; i<N; i++) orbitVector.push_back(x[i]);
-    s.add(mk_add(orbitVector) == orbitDegree);
+    //s.add(mk_add(orbitVector) == orbitDegree);
 
     vector<vector<int>> solutions;
 
