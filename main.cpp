@@ -62,6 +62,56 @@ vector<int> next(vector<int> v, int b) {
   }
 }
 
+vector<int> checkSysFix(vector<vector<rational<int>>> mat, vector<int> solution) {
+    vector<int> res;
+    bool test = true;
+    for (int i=0; i<mat.size(); i++) {
+        if (test == false) break;
+        rational<int> sum(0);
+        rational<int> vec = mat[i][mat[i].size() - 1];
+        for (int j=0; j<mat[i].size()-1; j++) {
+            sum += mat[i][j] * rational<int>(solution[j]);
+        }
+        if ((vec - sum != 0) && (vec - sum != 1)){
+            test = false;
+        }
+        else {
+            if (vec - sum == 0) res.push_back(0);
+            if (vec - sum == 1) res.push_back(1);
+        }
+    }
+
+    if (test == false) res.clear();
+    return res;
+}
+
+vector<int> checkSysOrbit(vector<vector<rational<int>>> mat, vector<int> solution) {
+    vector<int> res;
+    bool test = true;
+    for (int i=0; i<mat.size(); i++) {
+        if (test == false) break;
+        rational<int> sum(0);
+        rational<int> vec = mat[i][mat[i].size() - 1];
+        for (int j=0; j<mat[i].size()-1; j++) {
+            sum += mat[i][j] * rational<int>(solution[j]);
+        }
+        if ((vec - sum != 0) && (vec - sum != 1) && (vec - sum != 2) && (vec - sum != 3)){
+            test = false;
+        }
+        else {
+            if (vec - sum == 0) res.push_back(0);
+            if (vec - sum == 1) res.push_back(1);
+            if (vec - sum == 2) res.push_back(2);
+            if (vec - sum == 3) res.push_back(3);
+
+        }
+    }
+
+    if (test == false) res.clear();
+    return res;
+}
+
+
 vector<vector<rational<int>>> reducedRowEchelonForm(vector<vector<int>> matrix) {
     int lead = 0;
     int rowCount = matrix.size();
@@ -511,29 +561,104 @@ void generate_fix_matrices(vector<vector<int>> matrix, int row, int fixDegree, i
             linEq.push_back(equation);
         }
 
-        
-        vector<vector<rational<int>>> mat = reducedRowEchelonForm(linEq);
+        vector<vector<rational<int>>> tmpMat = reducedRowEchelonForm(linEq);
+        vector<vector<rational<int>>> mat;
 
-        int d=0;
-        for (int i=0; i<mat.size(); i++) {
+        // remove zero rows
+        for (int i=0; i<tmpMat.size(); i++) {
             bool t=true;
-            for (int j=0; j<mat[i].size(); j++) {
-                if (mat[i][j].numerator() != 0) t=false;
+            for (int j=0; j<tmpMat[i].size(); j++) {
+                if (tmpMat[i][j].numerator() != 0) t=false;
             }
-            if (t == false) mat.erase(mat.begin() + d);
-            d++;
+            if (t == false) mat.push_back(tmpMat[i]);
         }
 
-        vector<vector<int>> sol = solve_linear_equations_with_constraints_fix(linEquations, vect, 0, 1, row, f, fixDegree-tmpSumFix, orbitDegree);
+        // transpose matrix
+        vector<vector<rational<int>>> transposeMatrix;
+        for (int i=0; i<mat[0].size(); i++) {
+            vector<rational<int>> tmpVector;
+            for (int j=0; j<mat.size(); j++) {
+                tmpVector.push_back(mat[j][i]);
+            }
+            transposeMatrix.push_back(tmpVector);
+        }
 
-        for (int i=0; i<sol.size(); i++) {
+        int index = 0;
+        vector<rational<int>> tmp(mat.size());
+        tmp[index] = 1;
+        vector<int> sys;
+
+        vector<vector<rational<int>>> tmpTransposeMatrix;    
+        for (int i=0; i<transposeMatrix.size(); i++) {
+            if (transposeMatrix[i] == tmp) {    
+                sys.push_back(i);
+                if ((index + 1) != mat.size()) {
+                    tmp[index] = 0;
+                    index++;
+                    tmp[index] = 1;
+                }
+                else {
+                    tmp.clear();
+                }
+            }
+            else {
+                tmpTransposeMatrix.push_back(transposeMatrix[i]);
+            }
+        }
+
+        // transpose matrix
+        vector<vector<rational<int>>> mat2;
+        for (int i=0; i<tmpTransposeMatrix[0].size(); i++) {
+            vector<rational<int>> tmpVector;
+            for (int j=0; j<tmpTransposeMatrix.size(); j++) {
+                tmpVector.push_back(tmpTransposeMatrix[j][i]);
+            }
+            mat2.push_back(tmpVector);
+        }    
+
+        // when linear system is int and vector is rational, then pass
+        bool testRational = false;
+        for (int i=0; i<mat2.size(); i++) {
+            if (testRational == true) break;
+            bool testDenom = true;
+            for (int j=0; j<mat2[i].size() - 1; j++) {
+                if (mat2[i][j].denominator() != 1) testDenom = false;
+            }
+            if (testDenom == true && mat2[i][mat2[0].size() - 1].denominator() != 1) {
+                testRational = true;
+                break;
+            }
+        }
+        if (testRational == true)  {
+            return;
+        }
+        
+        vector<int> v(mat2[0].size() - 1);
+        while (v.size() != 0) {
+            vector<int> res = checkSysFix(mat2, v);
+            vector<int> sol(v);
+            for (int i=0; i<sys.size(); i++) sol.insert(sol.begin() + sys[i], res[i]);
+
+            int sumFix = 0;
+            for (int i=0; i<f; i++) sumFix += sol[i];
+            if (sumFix != fixDegree-tmpSumFix) {
+                v = next(v, 2);
+                continue;
+            }
+
+            int sumOrbit = 0;
+            for (int i=f; i<f+o; i++) sumOrbit += sol[i];
+            if (sumOrbit != orbitDegree) {
+                v = next(v, 2);
+                continue;
+            }
 
             vector<int> possibleRow;
             for(int j=0; j<tmpSol.size(); j++) possibleRow.push_back(tmpSol[j]);
-            for(int j=0; j<sol[i].size(); j++) possibleRow.push_back(sol[i][j]);
+            for(int j=0; j<sol.size(); j++) possibleRow.push_back(sol[j]);
 
-            int sumFix = tmpSumFix;
-            int sumOrbit = 0;
+            //int sumFix = tmpSumFix;
+            //int sumOrbit = 0;
 
             bool testSeq = false;
 
@@ -545,13 +670,16 @@ void generate_fix_matrices(vector<vector<int>> matrix, int row, int fixDegree, i
                     if (fixIndexes[j][k] > row) {
                         if (possibleRow[fixIndexes[j][k]] >= num) {
                             num = possibleRow[fixIndexes[j][k]];
-                            sumFix += possibleRow[fixIndexes[j][k]];
+                            // sumFix += possibleRow[fixIndexes[j][k]];
                         }
                         else testSeq = true;
                     }
                 }
             }
-            if (testSeq == true) continue;
+            if (testSeq == true) {
+                v = next(v, 2);
+                continue;
+            }
 
             for (int j=0; j<orbitIndexes.size(); j++) {
                 int num = -1;
@@ -560,13 +688,16 @@ void generate_fix_matrices(vector<vector<int>> matrix, int row, int fixDegree, i
                     if (f + orbitIndexes[j][k] > row) {
                         if (possibleRow[f + orbitIndexes[j][k]] >= num) {
                             num = possibleRow[f + orbitIndexes[j][k]];
-                            sumFix += possibleRow[f + orbitIndexes[j][k]];
+                            // sumFix += possibleRow[f + orbitIndexes[j][k]];
                         }
                         else testSeq = true;
                     }
                 }
             }
-            if (testSeq == true) continue;
+            if (testSeq == true) {
+                v = next(v, 2);
+                continue;
+            }
 
             // transpose matrix
             matrix[row] = possibleRow;
@@ -598,7 +729,10 @@ void generate_fix_matrices(vector<vector<int>> matrix, int row, int fixDegree, i
                     }
                 }
             }
-            if (testLM == true) continue;
+            if (testLM == true) {
+                v = next(v, 2);
+                continue;
+            }
 
             // test on isomorphism
             bool testIso = false;
@@ -623,7 +757,10 @@ void generate_fix_matrices(vector<vector<int>> matrix, int row, int fixDegree, i
                         } while(next_permutation(tmp.begin(),tmp.end()));
                     }
                 }
-                if (testIso == true) continue;
+                if (testIso == true) {
+                    v = next(v, 2);
+                    continue;
+                }
 
                 for (int j=0; j<orbitIndexes.size(); j++) {
                     if (testIso == true) break;
@@ -643,11 +780,15 @@ void generate_fix_matrices(vector<vector<int>> matrix, int row, int fixDegree, i
                         } while(next_permutation(tmp.begin(),tmp.end()));
                     }
                 }
-                if (testIso == true) continue;
+                if (testIso == true) {
+                    v = next(v, 2);
+                    continue;
+                }
 
                 if (row + 1 == f) {
                     vector<int> orbitRow(possibleRow.begin() + f, possibleRow.end());
-                    generate_orbit_matrix(matrix, f, fix_col_permutation(orbitRow, orbitIndexes));
+                    print_matrix(matrix);
+                    //generate_orbit_matrix(matrix, f, fix_col_permutation(orbitRow, orbitIndexes));
                 }
                 else {
                     vector<int> fixRow(possibleRow.begin(), possibleRow.begin() + f);
@@ -658,7 +799,14 @@ void generate_fix_matrices(vector<vector<int>> matrix, int row, int fixDegree, i
                     }            
                 }           
             }
+            v = next(v, 2);
         }
+
+        // vector<vector<int>> sol = solve_linear_equations_with_constraints_fix(linEquations, vect, 0, 1, row, f, fixDegree-tmpSumFix, orbitDegree);
+
+        // for (int i=0; i<sol.size(); i++) {
+
+        // }
     }
 }
 
@@ -866,9 +1014,8 @@ int test() {
 }
 
 
-
 int main() {
-    // generate(15, 6, 1, 3, 3, 3, true);
+    generate(15, 6, 1, 3, 3, 3, true);
     // test();
     // vector<int> v(2);
     // while (v.size() != 0) {
@@ -876,79 +1023,6 @@ int main() {
     //    v = next(v, 4);
     //}
 
-    vector<vector<int>> matrix {{1, 2, 3, -4}, {2, 4, 6, -8}, {3, 6, 9, -12}, {4, 8, 12, -16}, {0, 0, -3, 22}};
-    vector<vector<rational<int>>> mat = reducedRowEchelonForm(matrix);
-
-    // remove zero rows
-    vector<int> removeList;
-    for (int i=0; i<mat.size(); i++) {
-        bool t=true;
-        for (int j=0; j<mat[i].size(); j++) {
-            if (mat[i][j].numerator() != 0) t=false;
-        }
-        if (t == true) removeList.push_back(i);
-    }
-    for (int i=0; i<removeList.size(); i++) mat.erase(mat.begin() + removeList[i] - i);
-
-    // transpose matrix
-    vector<vector<rational<int>>> transposeMatrix;
-    for (int i=0; i<mat[0].size(); i++) {
-        vector<rational<int>> tmpVector;
-        for (int j=0; j<mat.size(); j++) {
-            tmpVector.push_back(mat[j][i]);
-        }
-        transposeMatrix.push_back(tmpVector);
-    }
-
-    int index = 0;
-    vector<rational<int>> tmp(mat.size());
-    tmp[index] = 1;
-    vector<int> sys;
-
-    for (int i=0; i<transposeMatrix.size(); i++) {
-        if (transposeMatrix[i] == tmp) {
-            sys.push_back(i + index);
-            transposeMatrix.erase(transposeMatrix.begin() + i);
-            if ((index + 1) != transposeMatrix.size()) {
-                tmp[index] = 0;
-                index++;
-                tmp[index] = 1;
-            }
-            else {
-                tmp.clear();
-            }
-        }
-    }
-    // transpose matrix
-    vector<vector<rational<int>>> mat2;
-    for (int i=0; i<transposeMatrix[0].size(); i++) {
-        vector<rational<int>> tmpVector;
-        for (int j=0; j<transposeMatrix.size(); j++) {
-            tmpVector.push_back(transposeMatrix[j][i]);
-        }
-        mat2.push_back(tmpVector);
-    }    
-
-    // when linear system is int and vector is rational, then pass
-    bool testRational = false;
-    for (int i=0; i<mat2.size(); i++) {
-        if (testRational == true) break;
-        bool testDenom = true;
-        for (int j=0; j<mat2[i].size() - 1; j++) {
-            if (mat2[i][j].denominator() != 1) testDenom = false;
-        }
-        if (testDenom == true && mat2[i][mat2[0].size() - 1].denominator() != 1) {
-            testRational = true;
-            break;
-        }
-    }
-    if (testRational == true) {
-        // something
-    }
-
-    // checkSysFix 
-    // checkSysOrbit
-    // create solution from sys and tmp
 
     return 0;
 }
