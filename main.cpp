@@ -173,6 +173,7 @@ vector<int> print_cert_matrix(vector<vector<int>> matrix) {
 }
 
 void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<int>> indexes) {
+
     int numberFix0 = 0;
     int number0 = 0;
     int number1 = 0;
@@ -255,7 +256,7 @@ void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<in
             }
             else {
                 tmp.clear();
-                tmp.push_back(9);
+                tmp.push_back(-9999999);
             }
         }
         else {
@@ -297,7 +298,6 @@ void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<in
         v.push_back(0);
         end.push_back(-1);
     }
-
     if (mat2[0].size() == 1) {
         vector<int> res = checkSysOrbit(mat2, v);
     
@@ -433,10 +433,11 @@ void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<in
                 v = next(v, 4);
                 continue;
             } 
-
+            
             vector<int> sol(v);
-            for (int i=0; i<sys.size(); i++) sol.insert(sol.begin() + sys[i], res[i]);
 
+            for (int i=0; i<sys.size(); i++) sol.insert(sol.begin() + sys[i], res[i]);
+            
             vector<int> possibleRow;
             for(int j=0; j<tmpSol.size(); j++) possibleRow.push_back(tmpSol[j]);
             for(int j=0; j<sol.size(); j++) possibleRow.push_back(sol[j]);
@@ -445,7 +446,7 @@ void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<in
             int number11 = 0;
             int number22 = 0;
             int number33 = 0;
-
+            
             bool testSeq = false;
             for (int j=0; j<indexes.size(); j++) {
                 int num = -1;
@@ -463,6 +464,7 @@ void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<in
                     }
                 }
             }
+            
             if (testSeq == true) {
                 v = next(v, 4);
                 continue;
@@ -1079,6 +1081,66 @@ int test() {
     if (generate(36, 15, 6, 6, 3, 9, false) == 1) cout << "SRG(36,15,6,6,3,9) OK" << endl;
     else cout << "SRG(36,15,6,6,3,9) FAIL" << endl;
 
+    if (generate(40, 12, 2, 4, 3, 1, false) == 9) cout << "SRG(40,12,2,4,3,1) OK" << endl;
+    else cout << "SRG(40,12,2,4,3,1) FAIL" << endl;
+
+    if (generate(40, 12, 2, 4, 3, 4, false) == 5) cout << "SRG(40,12,2,4,3,4) OK" << endl;
+    else cout << "SRG(40,12,2,4,3,4) FAIL" << endl;
+
+    if (generate(40, 12, 2, 4, 3, 7, false) == 1) cout << "SRG(40,12,2,4,3,7) OK" << endl;
+    else cout << "SRG(40,12,2,4,3,7) FAIL" << endl;
+
+    if (generate(40, 12, 2, 4, 3, 13, false) == 1) cout << "SRG(40,12,2,4,3,13) OK" << endl;
+    else cout << "SRG(40,12,2,4,3,13) FAIL" << endl;
+
+    if (generate(45, 12, 3, 3, 3, 3, false) == 5) cout << "SRG(45,12,3,3,3,3) OK" << endl;
+    else cout << "SRG(45,12,3,3,3,3) FAIL" << endl;
+
+    if (generate(45, 12, 3, 3, 3, 6, false) == 6) cout << "SRG(45,12,3,3,3,6) OK" << endl;
+    else cout << "SRG(45,12,3,3,3,6) FAIL" << endl;
+
+    if (generate(45, 12, 3, 3, 3, 9, false) == 2) cout << "SRG(45,12,3,3,3,9) OK" << endl;
+    else cout << "SRG(45,12,3,3,3,9) FAIL" << endl;
+
+    if (generate(37, 18, 8, 9, 3, 1, false) == 18) cout << "SRG(37,18,8,9,3,1) OK" << endl;
+    else cout << "SRG(36,18,8,9,3,1) FAIL" << endl;
+
+    if (generate(41, 20, 9, 10, 3, 5, false) == 18) cout << "SRG(41,20,9,10,3,5) OK" << endl;
+    else cout << "SRG(41,20,9,10,3,5) FAIL" << endl;
+
+    if (generate(45, 22, 10, 11, 3, 9, false) == 7) cout << "SRG(45,22,10,11,3,9) OK" << endl;
+    else cout << "SRG(45,22,10,11,3,9) FAIL" << endl;
+
+    if (generate(49, 18, 7, 6, 3, 1, false) == 595) cout << "SRG(49,18,7,6,3,1) OK" << endl;
+    else cout << "SRG(49,18,7,6,3,1) FAIL" << endl;
+
+    if (generate(49, 18, 7, 6, 3, 4, false) == 107) cout << "SRG(49,18,7,6,3,4) OK" << endl;
+    else cout << "SRG(49,18,7,6,3,4) FAIL" << endl;
+
+    if (generate(49, 18, 7, 6, 3, 7, false) == 4) cout << "SRG(49,18,7,6,3,7) OK" << endl;
+    else cout << "SRG(49,18,7,6,3,7) FAIL" << endl;
+
+    if (generate(49, 24, 11, 12, 3, 1, false) == 5029) cout << "SRG(49,24,11,12,3,1) OK" << endl;
+    else cout << "SRG(49,24,11,12,3,1) FAIL" << endl;
+
+    if (generate(49, 24, 11, 12, 3, 4, false) == 124) cout << "SRG(49,24,11,12,3,4) OK" << endl;
+    else cout << "SRG(49,24,11,12,3,4) FAIL" << endl;
+
+    if (generate(49, 24, 11, 12, 3, 7, false) == 40) cout << "SRG(49,24,11,12,3,7) OK" << endl;
+    else cout << "SRG(49,24,11,12,3,7) FAIL" << endl;
+
+    if (generate(50, 21, 8, 9, 3, 2, false) == 5043) cout << "SRG(50,21,8,9,3,2) OK" << endl;
+    else cout << "SRG(50,21,8,9,3,2) FAIL" << endl;
+
+    if (generate(50, 21, 8, 9, 3, 5, false) == 106) cout << "SRG(50,21,8,9,3,5) OK" << endl;
+    else cout << "SRG(50,21,8,9,3,5) FAIL" << endl;
+
+    if (generate(50, 21, 8, 9, 3, 8, false) == 35) cout << "SRG(50,21,8,9,3,8) OK" << endl;
+    else cout << "SRG(50,21,8,9,3,8) FAIL" << endl;
+
+    if (generate(53, 26, 15, 16, 3, 5, false) == 1229) cout << "SRG(53,26,15,16,3,5) OK" << endl;
+    else cout << "SRG(53,26,15,16,3,5) FAIL" << endl;
+
     clock_t end = clock();
     double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
     cout << "time: " << elapsed_secs << endl;
@@ -1090,6 +1152,8 @@ int main() {
     // generate(28, 12, 6, 4, 3, 10, true); 
     // generate(35, 16, 6, 8, 3, 2, true);
     test();
+    //generate(37, 18, 8, 9, 3, 1, true);
+    //generate(41, 20, 9, 10, 3, 5, true);
     // vector<int> v(2);
     // while (v.size() != 0) {
     //    print_vector(v);
