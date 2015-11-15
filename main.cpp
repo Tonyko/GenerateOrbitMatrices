@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <ctime>
 #include <boost/rational.hpp>
 
 #include "libraryZ3.hpp"
@@ -40,129 +41,6 @@ vector<vector<int>> constMatrix;
 vector<int> nMatrix;
 vector<int> lambdaSet;
 vector<int> muSet;
-
-vector<int> next(vector<int> v, int b) {
-  int index=-1;
-  bool t=false;
-  for (int i=0; i<v.size(); i++) {
-    if (v[i] < b-1) {
-      t=true;
-      index=i;
-      break;
-    }
-  }
-  if (index != -1) {
-    fill(v.begin(), v.begin() + index, 0);
-    v[index]++;
-    return v;
-  }
-  else {
-    v.clear();
-    return v;
-  }
-}
-
-vector<int> checkSysFix(vector<vector<rational<int>>> mat, vector<int> solution) {
-    vector<int> res;
-    bool test = true;
-    for (int i=0; i<mat.size(); i++) {
-        if (test == false) break;
-        rational<int> sum(0);
-        rational<int> vec = mat[i][mat[i].size() - 1];
-        for (int j=0; j<mat[i].size()-1; j++) {
-            sum += mat[i][j] * rational<int>(solution[j]);
-        }
-        if ((vec - sum != 0) && (vec - sum != 1)){
-            test = false;
-        }
-        else {
-            if (vec - sum == 0) res.push_back(0);
-            if (vec - sum == 1) res.push_back(1);
-        }
-    }
-
-    if (test == false) res.clear();
-    return res;
-}
-
-vector<int> checkSysOrbit(vector<vector<rational<int>>> mat, vector<int> solution) {
-    vector<int> res;
-    bool test = true;
-    for (int i=0; i<mat.size(); i++) {
-        if (test == false) break;
-        rational<int> sum(0);
-        rational<int> vec = mat[i][mat[i].size() - 1];
-        for (int j=0; j<mat[i].size()-1; j++) {
-            sum += mat[i][j] * rational<int>(solution[j]);
-        }
-        if ((vec - sum != 0) && (vec - sum != 1) && (vec - sum != 2) && (vec - sum != 3)){
-            test = false;
-        }
-        else {
-            if (vec - sum == 0) res.push_back(0);
-            if (vec - sum == 1) res.push_back(1);
-            if (vec - sum == 2) res.push_back(2);
-            if (vec - sum == 3) res.push_back(3);
-
-        }
-    }
-
-    if (test == false) res.clear();
-    return res;
-}
-
-
-vector<vector<rational<int>>> reducedRowEchelonForm(vector<vector<int>> matrix) {
-    int lead = 0;
-    int rowCount = matrix.size();
-    int colCount = matrix[0].size();
-
-    vector<vector<rational<int>>> newMatrix;
-    for (int i=0; i<matrix.size(); i++) {
-        vector<rational<int>> tmpVect;
-        for (int j=0; j<matrix[i].size(); j++) {
-            tmpVect.push_back(rational<int>(matrix[i][j]));
-        }
-        newMatrix.push_back(tmpVect);
-    }  
-
-    for (int r=0; r<rowCount; r++) {
-        int i=r;
-
-        while (lead < colCount && newMatrix[i][lead] == 0) {
-            i++;
-            if (i == rowCount) {
-                i = r;
-                lead++;
-            }
-        }
-
-        if (lead < colCount) {
-            // swap rows
-            vector<rational<int>> tmp;
-            tmp = newMatrix[i];
-            newMatrix[i] = newMatrix[r];
-            newMatrix[r] = tmp;
-
-            rational<int> lv = newMatrix[r][lead];
-            for (int index=0; index<newMatrix[r].size(); index++) {
-                newMatrix[r][index] /= lv;
-            }
-
-            for (int i=0; i<rowCount; i++) {
-                if (i != r) {
-                    lv = newMatrix[i][lead];
-                    for (int index=0; index<newMatrix[i].size(); index++) {
-                        newMatrix[i][index] -= lv * newMatrix[r][index];
-                    }
-                }
-            }
-            lead++;
-        }
-    }
-
-    return newMatrix;
-}
 
 // from Behbahani thesis
 void solve_linear_equations() {
@@ -295,7 +173,6 @@ vector<int> print_cert_matrix(vector<vector<int>> matrix) {
 }
 
 void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<int>> indexes) {
-
     int numberFix0 = 0;
     int number0 = 0;
     int number1 = 0;
@@ -319,8 +196,7 @@ void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<in
     // s_ir = sum_k 1 to o {c_ik c_rk n_k}
     // number of lin. equations = row - 1 (s_12, s13)
 
-    vector<vector<int>> linEquations;
-    vector<int> vect;
+    vector<vector<int>> linEq;
 
     for (int i=0; i<row; i++) {
         int value = (m * nMatrix[i] * nMatrix[row]) + ((l -m) * nMatrix[row] * matrix[i][row]);
@@ -329,23 +205,108 @@ void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<in
         for (int j=0; j<(f+o)-row; j++) equation.push_back(0);
 
         for (int j=0; j<row; j++) {
-            if (tmpSol[j] != 0) value -= tmpSol[j] * matrix[i][j] * nMatrix[j];
+            if (tmpSol[j] != 0) {
+                value -= tmpSol[j] * matrix[i][j] * nMatrix[j];
+            }
         }
 
         for (int j=row; j<f+o; j++) {
             equation[j - row] = matrix[i][j] * nMatrix[j];
         }
 
-        vect.push_back(value);
-        linEquations.push_back(equation);
+        equation.push_back(value);
+        linEq.push_back(equation);
+    }
+    vector<vector<rational<int>>> tmpMat = reducedRowEchelonForm(linEq);
+    vector<vector<rational<int>>> mat;
+
+    // remove zero rows
+    for (int i=0; i<tmpMat.size(); i++) {
+        bool t=true;
+        for (int j=0; j<tmpMat[i].size(); j++) {
+            if (tmpMat[i][j].numerator() != 0) t=false;
+        }
+        if (t == false) mat.push_back(tmpMat[i]);
     }
 
-    vector<vector<int>> sol0 = solve_linear_equations_with_constraints_orbit(linEquations, vect, 0, 3, 0);
+    // transpose matrix
+    vector<vector<rational<int>>> transposeMatrix;
+    for (int i=0; i<mat[0].size(); i++) {
+        vector<rational<int>> tmpVector;
+        for (int j=0; j<mat.size(); j++) {
+            tmpVector.push_back(mat[j][i]);
+        }
+        transposeMatrix.push_back(tmpVector);
+    }
 
-    for (int i=0; i<sol0.size(); i++) {
+    int index = 0;
+    vector<rational<int>> tmp(mat.size());
+    tmp[index] = 1;
+    vector<int> sys;
+
+    vector<vector<rational<int>>> tmpTransposeMatrix;    
+    for (int i=0; i<transposeMatrix.size(); i++) {
+        if (operator==(transposeMatrix[i], tmp)) {    
+            sys.push_back(i);
+            if ((index + 1) != mat.size()) {
+                tmp[index] = 0;
+                index++;
+                tmp[index] = 1;
+            }
+            else {
+                tmp.clear();
+                tmp.push_back(9);
+            }
+        }
+        else {
+            tmpTransposeMatrix.push_back(transposeMatrix[i]);
+        }
+    }
+
+    // transpose matrix
+    vector<vector<rational<int>>> mat2;
+    for (int i=0; i<tmpTransposeMatrix[0].size(); i++) {
+        vector<rational<int>> tmpVector;
+        for (int j=0; j<tmpTransposeMatrix.size(); j++) {
+            tmpVector.push_back(tmpTransposeMatrix[j][i]);
+        }
+        mat2.push_back(tmpVector);
+    }    
+
+    // when linear system is int and vector is rational, then pass
+    bool testRational = false;
+    for (int i=0; i<mat2.size(); i++) {
+        if (testRational == true) break;
+        bool testDenom = true;
+        for (int j=0; j<mat2[i].size() - 1; j++) {
+            if (mat2[i][j].denominator() != 1) testDenom = false;
+        }
+        if (testDenom == true && mat2[i][mat2[0].size() - 1].denominator() != 1) {
+            testRational = true;
+            break;
+        }
+    }
+
+    if (testRational == true)  {
+        return;
+    }
+
+    vector<int> v;
+    vector<int> end;
+    for (int i=0; i<mat2[0].size()-1; i++) {
+        v.push_back(0);
+        end.push_back(-1);
+    }
+
+    if (mat2[0].size() == 1) {
+        vector<int> res = checkSysOrbit(mat2, v);
+    
+        vector<int> sol(v);
+        for (int i=0; i<sys.size(); i++) sol.insert(sol.begin() + sys[i], res[i]);
+
         vector<int> possibleRow;
-        for (int j=0; j<tmpSol.size(); j++) possibleRow.push_back(tmpSol[j]);
-        for (int j=0; j<sol0[i].size(); j++) possibleRow.push_back(sol0[i][j]);
+        for(int j=0; j<tmpSol.size(); j++) possibleRow.push_back(tmpSol[j]);
+        for(int j=0; j<sol.size(); j++) possibleRow.push_back(sol[j]);
 
         int number00 = 0;
         int number11 = 0;
@@ -355,7 +316,7 @@ void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<in
         bool testSeq = false;
         for (int j=0; j<indexes.size(); j++) {
             int num = -1;
-            if (testSeq == true) continue;
+            if (testSeq == true) break;
             for (int k=0; k<indexes[j].size(); k++) {
                 if (indexes[j][k] + f > row) {
                     if (possibleRow[f + indexes[j][k]] >= num) {
@@ -369,125 +330,238 @@ void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<in
                 }
             }
         }
-        if (testSeq == true) continue;
+        if (testSeq == false) {
+            for (int jj=0; jj<linEqOrbitSolution0.size(); jj++) {
+                if (possibleRow[row] == 0 &&
+                    linEqOrbitSolution0[jj][0] == numberFix0 &&
+                    linEqOrbitSolution0[jj][1] == f-numberFix0 &&
+                    linEqOrbitSolution0[jj][2] == number0 + number00 + 1 &&
+                    linEqOrbitSolution0[jj][3] == number1 + number11 &&
+                    linEqOrbitSolution0[jj][4] == number2 + number22 &&
+                    linEqOrbitSolution0[jj][5] == number3 + number33) {
 
-        for (int jj=0; jj<linEqOrbitSolution0.size(); jj++) {
-            if (linEqOrbitSolution0[jj][0] == numberFix0 &&
-                linEqOrbitSolution0[jj][1] == f-numberFix0 &&
-                linEqOrbitSolution0[jj][2] == number0 + number00 + 1 &&
-                linEqOrbitSolution0[jj][3] == number1 + number11 &&
-                linEqOrbitSolution0[jj][4] == number2 + number22 &&
-                linEqOrbitSolution0[jj][5] == number3 + number33) {
-                
-                matrix[row] = possibleRow;
-                for (int j=row+1; j<f+o; j++) matrix[j][row] = matrix[row][j];
-                
-                // test on isomorphism
-                bool testIso = false;
-                vector<int> cert = print_cert_matrix(matrix);
-                for (int j=0; j<indexes.size(); j++) {
-                    if (testIso == true) break;
-                    if (indexes[j].size() != 1) {
-                        vector<int> tmp = indexes[j];
-                        do {
-                            vector<int> listPermutation = create_vector(f + o);
-                            for (int k=0; k<indexes[j].size(); k++) listPermutation[f + indexes[j][k]] = f + tmp[k];
-                            vector<int> cert2;
-                            for (int k=0; k<matrix.size(); k++) {
-                                for (int l=k; l<matrix.size(); l++) cert2.push_back(matrix[listPermutation[k]][listPermutation[l]]);
-                            }
-                            if (operator<(cert2, cert)) {
-                                testIso = true;
-                                break;
-                            }
-                        } while(next_permutation(tmp.begin(),tmp.end()));
+                    vector<vector<int>> newMatrix(matrix);
+                    newMatrix[row] = possibleRow;
+                    for (int j=row+1; j<f+o; j++) newMatrix[j][row] = newMatrix[row][j];
+                    
+                    // test on isomorphism
+                    bool testIso = false;
+                    vector<int> cert = print_cert_matrix(newMatrix);
+                    for (int j=0; j<indexes.size(); j++) {
+                        if (testIso == true) break;
+                        if (indexes[j].size() != 1) {
+                            vector<int> tmp = indexes[j];
+                            do {
+                                vector<int> listPermutation = create_vector(f + o);
+                                for (int k=0; k<indexes[j].size(); k++) listPermutation[f + indexes[j][k]] = f + tmp[k];
+                                vector<int> cert2;
+                                for (int k=0; k<newMatrix.size(); k++) {
+                                    for (int l=k; l<newMatrix.size(); l++) cert2.push_back(newMatrix[listPermutation[k]][listPermutation[l]]);
+                                }
+                                if (operator<(cert2, cert)) {
+                                    testIso = true;
+                                    break;
+                                }
+                            } while(next_permutation(tmp.begin(),tmp.end()));
+                        }
+                    }
+                    if (testIso == false) {
+                        if (row + 1 == f + o) {
+                            solutions.push_back(newMatrix);
+                        }
+                        else {
+                            vector<int> orbitRow(possibleRow.begin() + f, possibleRow.end());
+                            generate_orbit_matrix(newMatrix, row + 1, orbit_col_permutation(orbitRow, indexes));
+                        }
                     }
                 }
-                if (testIso == true) continue;
+            }
 
-                if (row + 1 == f + o) {
-                    solutions.push_back(matrix);
-                }
-                else {
-                    vector<int> orbitRow(possibleRow.begin() + f, possibleRow.end());
-                    generate_orbit_matrix(matrix, row + 1, orbit_col_permutation(orbitRow, indexes));
+            for (int jj=0; jj<linEqOrbitSolution2.size(); jj++) {
+                if (possibleRow[row] == 2 &&
+                    linEqOrbitSolution2[jj][0] == numberFix0 &&
+                    linEqOrbitSolution2[jj][1] == f-numberFix0 &&
+                    linEqOrbitSolution2[jj][2] == number0 + number00 &&
+                    linEqOrbitSolution2[jj][3] == number1 + number11 &&
+                    linEqOrbitSolution2[jj][4] == number2 + number22 + 1 &&
+                    linEqOrbitSolution2[jj][5] == number3 + number33) {
+                    
+                    vector<vector<int>> newMatrix(matrix);
+                    newMatrix[row] = possibleRow;
+                    for (int j=row+1; j<f+o; j++) newMatrix[j][row] = newMatrix[row][j];
+                    
+                    // test on isomorphism
+                    bool testIso = false;
+                    vector<int> cert = print_cert_matrix(newMatrix);
+                    for (int j=0; j<indexes.size(); j++) {
+                        if (testIso == true) break;
+                        if (indexes[j].size() != 1) {
+                            vector<int> tmp = indexes[j];
+                            do {
+                                vector<int> listPermutation = create_vector(f + o);
+                                for (int k=0; k<indexes[j].size(); k++) listPermutation[f + indexes[j][k]] = f + tmp[k];
+                                vector<int> cert2;
+                                for (int k=0; k<newMatrix.size(); k++) {
+                                    for (int l=k; l<newMatrix.size(); l++) cert2.push_back(newMatrix[listPermutation[k]][listPermutation[l]]);
+                                }
+                                if (operator<(cert2, cert)) {
+                                    testIso = true;
+                                    break;
+                                }
+                            } while(next_permutation(tmp.begin(),tmp.end()));
+                        }
+                    }
+
+                    if (testIso == false) {
+                        if (row + 1 == f + o) {
+                            solutions.push_back(newMatrix);
+                        }
+                        else {
+                            vector<int> orbitRow(possibleRow.begin() + f, possibleRow.end());
+                            generate_orbit_matrix(newMatrix, row + 1, orbit_col_permutation(orbitRow, indexes));
+                        }
+                    }
                 }
             }
         }
     }
+    else {
+        while (operator!=(v, end)) {
 
-    vector<vector<int>> sol2 = solve_linear_equations_with_constraints_orbit(linEquations, vect, 0, 3, 2);
-    for (int i=0; i<sol2.size(); i++) {
-        vector<int> possibleRow;
-        for (int j=0; j<tmpSol.size(); j++) possibleRow.push_back(tmpSol[j]);
-        for (int j=0; j<sol2[i].size(); j++) possibleRow.push_back(sol2[i][j]);
+            vector<int> res = checkSysOrbit(mat2, v);
+            if ((res.size() == 1) && (res[0] == 9)) {
+                v = next(v, 4);
+                continue;
+            } 
 
-        int number00 = 0;
-        int number11 = 0;
-        int number22 = 0;
-        int number33 = 0;
+            vector<int> sol(v);
+            for (int i=0; i<sys.size(); i++) sol.insert(sol.begin() + sys[i], res[i]);
 
-        bool testSeq = false;
-        for (int j=0; j<indexes.size(); j++) {
-            int num = -1;
-            if (testSeq == true) continue;
-            for (int k=0; k<indexes[j].size(); k++) {
-                if (indexes[j][k] + f > row) {
-                    if (possibleRow[f + indexes[j][k]] >= num) {
-                        num = possibleRow[f + indexes[j][k]];
-                        if (possibleRow[f + indexes[j][k]] == 0) number00++;
-                        if (possibleRow[f + indexes[j][k]] == 1) number11++;
-                        if (possibleRow[f + indexes[j][k]] == 2) number22++;
-                        if (possibleRow[f + indexes[j][k]] == 3) number33++;
-                    }
-                    else testSeq = true;
-                }
-            }
-        }
-        if (testSeq == true) continue;
+            vector<int> possibleRow;
+            for(int j=0; j<tmpSol.size(); j++) possibleRow.push_back(tmpSol[j]);
+            for(int j=0; j<sol.size(); j++) possibleRow.push_back(sol[j]);
 
-        for (int jj=0; jj<linEqOrbitSolution2.size(); jj++) {
-            if (linEqOrbitSolution2[jj][0] == numberFix0 &&
-                linEqOrbitSolution2[jj][1] == f-numberFix0 &&
-                linEqOrbitSolution2[jj][2] == number0 + number00 &&
-                linEqOrbitSolution2[jj][3] == number1 + number11 &&
-                linEqOrbitSolution2[jj][4] == number2 + number22 + 1 &&
-                linEqOrbitSolution2[jj][5] == number3 + number33) {
-                
-                matrix[row] = possibleRow;
-                for (int j=row+1; j<f+o; j++) matrix[j][row] = matrix[row][j];
-                
-                // test on isomorphism
-                bool testIso = false;
-                vector<int> cert = print_cert_matrix(matrix);
-                for (int j=0; j<indexes.size(); j++) {
-                    if (testIso == true) break;
-                    if (indexes[j].size() != 1) {
-                        vector<int> tmp = indexes[j];
-                        do {
-                            vector<int> listPermutation = create_vector(f + o);
-                            for (int k=0; k<indexes[j].size(); k++) listPermutation[f + indexes[j][k]] = f + tmp[k];
-                            vector<int> cert2;
-                            for (int k=0; k<matrix.size(); k++) {
-                                for (int l=k; l<matrix.size(); l++) cert2.push_back(matrix[listPermutation[k]][listPermutation[l]]);
-                            }
-                            if (operator<(cert2, cert)) {
-                                testIso = true;
-                                break;
-                            }
-                        } while(next_permutation(tmp.begin(),tmp.end()));
+            int number00 = 0;
+            int number11 = 0;
+            int number22 = 0;
+            int number33 = 0;
+
+            bool testSeq = false;
+            for (int j=0; j<indexes.size(); j++) {
+                int num = -1;
+                if (testSeq == true) break;
+                for (int k=0; k<indexes[j].size(); k++) {
+                    if (indexes[j][k] + f > row) {
+                        if (possibleRow[f + indexes[j][k]] >= num) {
+                            num = possibleRow[f + indexes[j][k]];
+                            if (possibleRow[f + indexes[j][k]] == 0) number00++;
+                            if (possibleRow[f + indexes[j][k]] == 1) number11++;
+                            if (possibleRow[f + indexes[j][k]] == 2) number22++;
+                            if (possibleRow[f + indexes[j][k]] == 3) number33++;
+                        }
+                        else testSeq = true;
                     }
                 }
-                if (testIso == true) continue;
+            }
+            if (testSeq == true) {
+                v = next(v, 4);
+                continue;
+            }
 
-                if (row + 1 == f + o) {
-                    solutions.push_back(matrix);
-                }
-                else {
-                    vector<int> orbitRow(possibleRow.begin() + f, possibleRow.end());
-                    generate_orbit_matrix(matrix, row + 1, orbit_col_permutation(orbitRow, indexes));
+            for (int jj=0; jj<linEqOrbitSolution0.size(); jj++) {
+                if (possibleRow[row] == 0 &&
+                    linEqOrbitSolution0[jj][0] == numberFix0 &&
+                    linEqOrbitSolution0[jj][1] == f-numberFix0 &&
+                    linEqOrbitSolution0[jj][2] == number0 + number00 + 1 &&
+                    linEqOrbitSolution0[jj][3] == number1 + number11 &&
+                    linEqOrbitSolution0[jj][4] == number2 + number22 &&
+                    linEqOrbitSolution0[jj][5] == number3 + number33) {
+
+                    vector<vector<int>> newMatrix(matrix);
+                    newMatrix[row] = possibleRow;
+                    for (int j=row+1; j<f+o; j++) newMatrix[j][row] = newMatrix[row][j];
+                    
+                    // test on isomorphism
+                    bool testIso = false;
+                    vector<int> cert = print_cert_matrix(newMatrix);
+                    for (int j=0; j<indexes.size(); j++) {
+                        if (testIso == true) break;
+                        if (indexes[j].size() != 1) {
+                            vector<int> tmp = indexes[j];
+                            do {
+                                vector<int> listPermutation = create_vector(f + o);
+                                for (int k=0; k<indexes[j].size(); k++) listPermutation[f + indexes[j][k]] = f + tmp[k];
+                                vector<int> cert2;
+                                for (int k=0; k<newMatrix.size(); k++) {
+                                    for (int l=k; l<newMatrix.size(); l++) cert2.push_back(newMatrix[listPermutation[k]][listPermutation[l]]);
+                                }
+                                if (operator<(cert2, cert)) {
+                                    testIso = true;
+                                    break;
+                                }
+                            } while(next_permutation(tmp.begin(),tmp.end()));
+                        }
+                    }
+                    if (testIso == false) {
+                        if (row + 1 == f + o) {
+                            solutions.push_back(newMatrix);
+                        }
+                        else {
+                            vector<int> orbitRow(possibleRow.begin() + f, possibleRow.end());
+                            generate_orbit_matrix(newMatrix, row + 1, orbit_col_permutation(orbitRow, indexes));
+                        }
+                    }
                 }
             }
+
+            for (int jj=0; jj<linEqOrbitSolution2.size(); jj++) {
+                if (possibleRow[row] == 2 &&
+                    linEqOrbitSolution2[jj][0] == numberFix0 &&
+                    linEqOrbitSolution2[jj][1] == f-numberFix0 &&
+                    linEqOrbitSolution2[jj][2] == number0 + number00 &&
+                    linEqOrbitSolution2[jj][3] == number1 + number11 &&
+                    linEqOrbitSolution2[jj][4] == number2 + number22 + 1 &&
+                    linEqOrbitSolution2[jj][5] == number3 + number33) {
+                    
+                    vector<vector<int>> newMatrix(matrix);
+                    newMatrix[row] = possibleRow;
+                    for (int j=row+1; j<f+o; j++) newMatrix[j][row] = newMatrix[row][j];
+                    
+                    // test on isomorphism
+                    bool testIso = false;
+                    vector<int> cert = print_cert_matrix(newMatrix);
+                    for (int j=0; j<indexes.size(); j++) {
+                        if (testIso == true) break;
+                        if (indexes[j].size() != 1) {
+                            vector<int> tmp = indexes[j];
+                            do {
+                                vector<int> listPermutation = create_vector(f + o);
+                                for (int k=0; k<indexes[j].size(); k++) listPermutation[f + indexes[j][k]] = f + tmp[k];
+                                vector<int> cert2;
+                                for (int k=0; k<newMatrix.size(); k++) {
+                                    for (int l=k; l<newMatrix.size(); l++) cert2.push_back(newMatrix[listPermutation[k]][listPermutation[l]]);
+                                }
+                                if (operator<(cert2, cert)) {
+                                    testIso = true;
+                                    break;
+                                }
+                            } while(next_permutation(tmp.begin(),tmp.end()));
+                        }
+                    }
+
+                    if (testIso == false) {
+                        if (row + 1 == f + o) {
+                            solutions.push_back(newMatrix);
+                        }
+                        else {
+                            vector<int> orbitRow(possibleRow.begin() + f, possibleRow.end());
+                            generate_orbit_matrix(newMatrix, row + 1, orbit_col_permutation(orbitRow, indexes));
+                        }
+                    }
+                }
+            }
+
+            v = next(v, 4);
         }
     }
 }
@@ -528,8 +602,6 @@ void generate_fix_matrices(vector<vector<int>> matrix, int row, int fixDegree, i
         // s_ir = sum_k 1 to o {c_ik c_rk n_k}
         // number of lin. equations = row - 1 (s_12, s13)
 
-        vector<vector<int>> linEquations;
-        vector<int> vect;
         vector<vector<int>> linEq;
 
         vector<int> tmpSol;
@@ -553,9 +625,6 @@ void generate_fix_matrices(vector<vector<int>> matrix, int row, int fixDegree, i
             for (int j=row; j<f+o; j++) {
                 equation[j - row] = matrix[i][j] * nMatrix[j];
             }
-
-            vect.push_back(value);
-            linEquations.push_back(equation);
 
             equation.push_back(value);
             linEq.push_back(equation);
@@ -632,33 +701,29 @@ void generate_fix_matrices(vector<vector<int>> matrix, int row, int fixDegree, i
         if (testRational == true)  {
             return;
         }
-        
+
         vector<int> v(mat2[0].size() - 1);
-        while (v.size() != 0) {
+        vector<int> end; 
+        for (int i=0; i<mat2[0].size()-1; i++) end.push_back(-1);
+
+        while (operator!=(v, end)) {
+
             vector<int> res = checkSysFix(mat2, v);
+
+            if ((res.size() == 1) && (res[0] == 9)) {
+                v = next(v, 2);
+                continue;
+            }
+
             vector<int> sol(v);
             for (int i=0; i<sys.size(); i++) sol.insert(sol.begin() + sys[i], res[i]);
-
-            int sumFix = 0;
-            for (int i=0; i<f; i++) sumFix += sol[i];
-            if (sumFix != fixDegree-tmpSumFix) {
-                v = next(v, 2);
-                continue;
-            }
-
-            int sumOrbit = 0;
-            for (int i=f; i<f+o; i++) sumOrbit += sol[i];
-            if (sumOrbit != orbitDegree) {
-                v = next(v, 2);
-                continue;
-            }
 
             vector<int> possibleRow;
             for(int j=0; j<tmpSol.size(); j++) possibleRow.push_back(tmpSol[j]);
             for(int j=0; j<sol.size(); j++) possibleRow.push_back(sol[j]);
 
-            //int sumFix = tmpSumFix;
-            //int sumOrbit = 0;
+            int sumFix = tmpSumFix;
+            int sumOrbit = 0;
 
             bool testSeq = false;
 
@@ -670,7 +735,7 @@ void generate_fix_matrices(vector<vector<int>> matrix, int row, int fixDegree, i
                     if (fixIndexes[j][k] > row) {
                         if (possibleRow[fixIndexes[j][k]] >= num) {
                             num = possibleRow[fixIndexes[j][k]];
-                            // sumFix += possibleRow[fixIndexes[j][k]];
+                            sumFix += possibleRow[fixIndexes[j][k]];
                         }
                         else testSeq = true;
                     }
@@ -688,13 +753,18 @@ void generate_fix_matrices(vector<vector<int>> matrix, int row, int fixDegree, i
                     if (f + orbitIndexes[j][k] > row) {
                         if (possibleRow[f + orbitIndexes[j][k]] >= num) {
                             num = possibleRow[f + orbitIndexes[j][k]];
-                            // sumFix += possibleRow[f + orbitIndexes[j][k]];
+                            sumOrbit += possibleRow[f + orbitIndexes[j][k]];
                         }
                         else testSeq = true;
                     }
                 }
             }
             if (testSeq == true) {
+                v = next(v, 2);
+                continue;
+            }
+
+            if ((possibleRow[row] != 0) || (sumFix != fixDegree) || (sumOrbit != orbitDegree)) {
                 v = next(v, 2);
                 continue;
             }
@@ -784,33 +854,27 @@ void generate_fix_matrices(vector<vector<int>> matrix, int row, int fixDegree, i
                     v = next(v, 2);
                     continue;
                 }
-
-                if (row + 1 == f) {
-                    vector<int> orbitRow(possibleRow.begin() + f, possibleRow.end());
-                    print_matrix(matrix);
-                    //generate_orbit_matrix(matrix, f, fix_col_permutation(orbitRow, orbitIndexes));
-                }
-                else {
-                    vector<int> fixRow(possibleRow.begin(), possibleRow.begin() + f);
-                    vector<int> orbitRow(possibleRow.begin() + f, possibleRow.end());
-                    for (int i=0; i<linEqFixSolution.size(); i++) {
-                        generate_fix_matrices(matrix, row + 1, linEqFixSolution[i][1], linEqFixSolution[i][3], fix_col_permutation(fixRow, fixIndexes),
-                         fix_col_permutation(orbitRow, orbitIndexes));
-                    }            
-                }           
             }
+
+            if (row + 1 == f) {
+                vector<int> orbitRow(possibleRow.begin() + f, possibleRow.end());
+                generate_orbit_matrix(matrix, f, fix_col_permutation(orbitRow, orbitIndexes));
+            }
+            else {
+                vector<int> fixRow(possibleRow.begin(), possibleRow.begin() + f);
+                vector<int> orbitRow(possibleRow.begin() + f, possibleRow.end());
+                for (int i=0; i<linEqFixSolution.size(); i++) {
+                    generate_fix_matrices(matrix, row + 1, linEqFixSolution[i][1], linEqFixSolution[i][3], fix_col_permutation(fixRow, fixIndexes),
+                     fix_col_permutation(orbitRow, orbitIndexes));
+                }            
+            }           
+            
             v = next(v, 2);
         }
-
-        // vector<vector<int>> sol = solve_linear_equations_with_constraints_fix(linEquations, vect, 0, 1, row, f, fixDegree-tmpSumFix, orbitDegree);
-
-        // for (int i=0; i<sol.size(); i++) {
-
-        // }
     }
 }
 
-void save_matrices() {
+void save_matrices(bool debug) {
 
     string name =  to_string(n) + "," + to_string(k) + "," + to_string(l) + "," + to_string(m) + "," + to_string(f) + "," + to_string(p);
     string fold = "matrices/srg(" + name + ")";
@@ -872,6 +936,8 @@ void save_matrices() {
     string output2 = fold + "/number-solutions(" + name + ").txt"; 
 
     string sage = "sage Test.sage '" + fil2 + "' '" + output + "' '" + output2 + "'";
+
+    if (debug == false) sage += "> tmp";
     system(sage.c_str());
 }
 
@@ -939,84 +1005,91 @@ int generate(int nn, int kk, int ll, int mm, int pp, int ff, bool debug) {
         cout << "Number of solutions: " << solutions.size() << endl;
     }
 
-    save_matrices();
+    save_matrices(debug);
 
     return load_number_solutions();
 }
 
 int test() {
-    if (generate(15, 6, 1, 3, 3, 3, false) == 1) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    clock_t begin = clock();
 
-    if (generate(25, 12, 5, 6, 3, 1, false) == 9) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(15, 6, 1, 3, 3, 3, false) == 1) cout << "SRG(15,6,1,3,3,3) OK" << endl;
+    else cout << "SRG(15,6,1,3,3,3) FAIL" << endl;
 
-    if (generate(25, 12, 5, 6, 3, 4, false) == 4) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(25, 12, 5, 6, 3, 1, false) == 9) cout << "SRG(25,12,5,6,3,1) OK" << endl;
+    else cout << "SRG(25,12,5,6,3,1) FAIL" << endl;
 
-    if (generate(29, 14, 6, 7, 3, 5, false) == 1) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(25, 12, 5, 6, 3, 4, false) == 4) cout << "SRG(25,12,5,6,3,4) OK" << endl;
+    else cout << "SRG(25,12,5,6,3,4) FAIL" << endl;
 
-    if (generate(26, 10, 3, 4, 3, 2, false) == 3) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(29, 14, 6, 7, 3, 5, false) == 1) cout << "SRG(29,14,6,7,3,5) OK" << endl;
+    else cout << "SRG(29,14,6,7,3,5) FAIL" << endl;
 
-    if (generate(26, 10, 3, 4, 3, 8, false) == 0) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(26, 10, 3, 4, 3, 2, false) == 3) cout << "SRG(26,10,3,4,3,2) OK" << endl;
+    else cout << "SRG(26,10,3,4,3,2) FAIL" << endl;
 
-    if (generate(28, 12, 6, 4, 3, 1, false) == 4) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(26, 10, 3, 4, 3, 8, false) == 0) cout << "SRG(26,10,3,4,3,8) OK" << endl;
+    else cout << "SRG(26,10,3,4,3,8) FAIL" << endl;
 
-    if (generate(28, 12, 6, 4, 3, 4, false) == 0) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(28, 12, 6, 4, 3, 1, false) == 4) cout << "SRG(26,12,6,4,3,1) OK" << endl;
+    else cout << "SRG(26,12,6,4,3,1) FAIL" << endl;
 
-    if (generate(28, 12, 6, 4, 3, 7, false) == 0) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(28, 12, 6, 4, 3, 4, false) == 0) cout << "SRG(26,12,6,4,3,4) OK" << endl;
+    else cout << "SRG(26,12,6,4,3,4) FAIL" << endl;
 
-    if (generate(28, 12, 6, 4, 3, 10, false) == 2) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(28, 12, 6, 4, 3, 7, false) == 0) cout << "SRG(26,12,6,4,3,7) OK" << endl;
+    else cout << "SRG(26,12,6,4,3,7) FAIL" << endl;
 
-    if (generate(35, 16, 6, 8, 3, 2, false) == 18) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(28, 12, 6, 4, 3, 10, false) == 2) cout << "SRG(26,12,6,4,3,10) OK" << endl;
+    else cout << "SRG(26,12,6,4,3,10) FAIL" << endl;
 
-    if (generate(35, 16, 6, 8, 3, 5, false) == 3) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(35, 16, 6, 8, 3, 2, false) == 18) cout << "SRG(35,16,6,8,3,2) OK" << endl;
+    else cout << "SRG(35,16,6,8,3,2) FAIL" << endl;
 
-    if (generate(35, 16, 6, 8, 3, 8, false) == 1) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(35, 16, 6, 8, 3, 5, false) == 3) cout << "SRG(35,16,6,8,3,5) OK" << endl;
+    else cout << "SRG(35,16,6,8,3,5) FAIL" << endl;
 
-    if (generate(35, 18, 9, 9, 3, 2, false) == 18) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(35, 16, 6, 8, 3, 8, false) == 1) cout << "SRG(35,16,6,8,3,8) OK" << endl;
+    else cout << "SRG(35,16,6,8,3,8) FAIL" << endl;
 
-    if (generate(35, 18, 9, 9, 3, 5, false) == 3) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(35, 18, 9, 9, 3, 2, false) == 18) cout << "SRG(35,18,9,9,3,2) OK" << endl;
+    else cout << "SRG(35,18,9,9,3,2) FAIL" << endl;
 
-    if (generate(35, 18, 9, 9, 3, 8, false) == 1) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(35, 18, 9, 9, 3, 5, false) == 3) cout << "SRG(35,18,9,9,3,5) OK" << endl;
+    else cout << "SRG(35,18,9,9,3,5) FAIL" << endl;
 
-    if (generate(36, 14, 4, 6, 3, 3, false) == 3) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(35, 18, 9, 9, 3, 8, false) == 1) cout << "SRG(35,18,9,9,3,8) OK" << endl;
+    else cout << "SRG(35,18,9,9,3,8) FAIL" << endl;
 
-    if (generate(36, 14, 4, 6, 3, 6, false) == 0) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(36, 14, 4, 6, 3, 3, false) == 3) cout << "SRG(36,14,4,6,3,3) OK" << endl;
+    else cout << "SRG(36,14,4,6,3,3) FAIL" << endl;
 
-    if (generate(36, 14, 4, 6, 3, 9, false) == 1) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(36, 14, 4, 6, 3, 6, false) == 0) cout << "SRG(36,14,4,6,3,6) OK" << endl;
+    else cout << "SRG(36,14,4,6,3,3) FAIL" << endl;
 
-    if (generate(36, 15, 6, 6, 3, 3, false) == 30) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(36, 14, 4, 6, 3, 9, false) == 1) cout << "SRG(36,14,4,6,3,9) OK" << endl;
+    else cout << "SRG(36,14,4,6,3,9) FAIL" << endl;
 
-    if (generate(36, 15, 6, 6, 3, 6, false) == 4) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(36, 15, 6, 6, 3, 3, false) == 30) cout << "SRG(36,15,6,6,3,3) OK" << endl;
+    else cout << "SRG(36,15,6,6,3,3) FAIL" << endl;
 
-    if (generate(36, 15, 6, 6, 3, 9, false) == 1) cout << "OK" << endl;
-    else cout << "FAIL" << endl;
+    if (generate(36, 15, 6, 6, 3, 6, false) == 4) cout << "SRG(36,15,6,6,3,6) OK" << endl;
+    else cout << "SRG(36,15,6,6,3,6) FAIL" << endl;
 
+    if (generate(36, 15, 6, 6, 3, 9, false) == 1) cout << "SRG(36,15,6,6,3,9) OK" << endl;
+    else cout << "SRG(36,15,6,6,3,9) FAIL" << endl;
+
+    clock_t end = clock();
+    double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+    cout << "time: " << elapsed_secs << endl;
 }
 
 
 int main() {
-    generate(15, 6, 1, 3, 3, 3, true);
-    // test();
+    // generate(15, 6, 1, 3, 3, 3, true);
+    // generate(28, 12, 6, 4, 3, 10, true); 
+    // generate(35, 16, 6, 8, 3, 2, true);
+    test();
     // vector<int> v(2);
     // while (v.size() != 0) {
     //    print_vector(v);

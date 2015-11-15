@@ -14,3 +14,7 @@ vector<vector<int>> multiply_const_matrix(vector<vector<int>> matrix, int c);
 vector<vector<int>> create_matrix(int size, int c);
 vector<vector<int>> create_indexes(int size);
 vector<int> create_vector(int size);
+vector<vector<rational<int>>> reducedRowEchelonForm(vector<vector<int>> matrix);
+vector<int> checkSysOrbit(vector<vector<rational<int>>> mat, vector<int> solution);
+vector<int> checkSysFix(vector<vector<rational<int>>> mat, vector<int> solution);
+vector<int> next(vector<int> v, int b);
