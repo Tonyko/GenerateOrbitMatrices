@@ -333,6 +333,7 @@ void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<in
         if (testSeq == false) {
             for (int jj=0; jj<linEqOrbitSolution0.size(); jj++) {
                 if (possibleRow[row] == 0 &&
+                    ((number2 + number22) + (3*(number3 + number33)) + (f-numberFix0)) == m &&
                     linEqOrbitSolution0[jj][0] == numberFix0 &&
                     linEqOrbitSolution0[jj][1] == f-numberFix0 &&
                     linEqOrbitSolution0[jj][2] == number0 + number00 + 1 &&
@@ -379,6 +380,7 @@ void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<in
 
             for (int jj=0; jj<linEqOrbitSolution2.size(); jj++) {
                 if (possibleRow[row] == 2 &&
+                    ((number2 + number22) + (3*(number3 + number33)) + (f-numberFix0) + 1) == l &&
                     linEqOrbitSolution2[jj][0] == numberFix0 &&
                     linEqOrbitSolution2[jj][1] == f-numberFix0 &&
                     linEqOrbitSolution2[jj][2] == number0 + number00 &&
@@ -472,6 +474,7 @@ void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<in
 
             for (int jj=0; jj<linEqOrbitSolution0.size(); jj++) {
                 if (possibleRow[row] == 0 &&
+                    ((number2 + number22) + (3*(number3 + number33)) + (f-numberFix0)) == m &&
                     linEqOrbitSolution0[jj][0] == numberFix0 &&
                     linEqOrbitSolution0[jj][1] == f-numberFix0 &&
                     linEqOrbitSolution0[jj][2] == number0 + number00 + 1 &&
@@ -518,6 +521,7 @@ void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<in
 
             for (int jj=0; jj<linEqOrbitSolution2.size(); jj++) {
                 if (possibleRow[row] == 2 &&
+                    ((number2 + number22) + (3*(number3 + number33)) + (f-numberFix0) + 1) == l &&
                     linEqOrbitSolution2[jj][0] == numberFix0 &&
                     linEqOrbitSolution2[jj][1] == f-numberFix0 &&
                     linEqOrbitSolution2[jj][2] == number0 + number00 &&
