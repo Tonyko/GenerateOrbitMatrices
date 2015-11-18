@@ -1,4 +1,3 @@
-#include <iostream>
 #include <vector>
 #include <algorithm>
 #include <string>
@@ -8,11 +7,14 @@
 
 #include <iostream>
 #include <fstream>
-#include <ctime>
 #include <boost/rational.hpp>
+#include <tuple>
 
 #include "libraryZ3.hpp"
 #include "math.hpp"
+#include "test.hpp"
+#include "isomorphism.hpp"
+#include "main.hpp"
 
 using namespace std;
 using namespace boost;
@@ -123,55 +125,6 @@ void const_matrices() {
     }
 }
 
-vector<vector<int>> fix_col_permutation(vector<int> row, vector<vector<int>> indexes) {
-    vector<vector<int>> tmpMatrix;
-    for (int i=0; i<indexes.size(); i++) {
-        vector<int> list1;
-        vector<int> list2;
-        for (int j=0; j<indexes[i].size(); j++) {
-            if (row[indexes[i][j]] == 0) list1.push_back(indexes[i][j]);
-            if (row[indexes[i][j]] == 1) list2.push_back(indexes[i][j]);
-        }
-        if (!list1.empty()) tmpMatrix.push_back(list1);
-        if (!list2.empty()) tmpMatrix.push_back(list2);
-    }
-
-    return tmpMatrix;
-}
-
-vector<vector<int>> orbit_col_permutation(vector<int> row, vector<vector<int>> indexes) {
-    vector<vector<int>> tmpMatrix;
-    for (int i=0; i<indexes.size(); i++) {
-        vector<int> list1;
-        vector<int> list2;
-        vector<int> list3;
-        vector<int> list4;
-        for (int j=0; j<indexes[i].size(); j++) {
-            if (row[indexes[i][j]] == 0) list1.push_back(indexes[i][j]);
-            if (row[indexes[i][j]] == 1) list2.push_back(indexes[i][j]);
-            if (row[indexes[i][j]] == 2) list3.push_back(indexes[i][j]);
-            if (row[indexes[i][j]] == 3) list4.push_back(indexes[i][j]);
-        }
-        if (!list1.empty()) tmpMatrix.push_back(list1);
-        if (!list2.empty()) tmpMatrix.push_back(list2);
-        if (!list3.empty()) tmpMatrix.push_back(list3);
-        if (!list4.empty()) tmpMatrix.push_back(list4);
-    }
-
-    return tmpMatrix;
-}
-
-vector<int> print_cert_matrix(vector<vector<int>> matrix) {
-    vector<int> tmpVector;
-    for (int i=0; i<matrix.size(); i++) {
-        for(int j=i; j<matrix[i].size(); j++) {
-            tmpVector.push_back(matrix[i][j]);
-        }
-    }
-
-    return tmpVector;
-}
-
 void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<int>> indexes) {
 
     int numberFix0 = 0;
@@ -192,13 +145,12 @@ void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<in
         if (matrix[row][i] == 3) number3++;
         tmpSol.push_back(matrix[row][i]);
     }
+
     // create lin. equations from matrix equation -> Behbahani
     // s_ir = mi n_i n_r + (l - m) c_ir n_r
     // s_ir = sum_k 1 to o {c_ik c_rk n_k}
     // number of lin. equations = row - 1 (s_12, s13)
-
     vector<vector<int>> linEq;
-
     for (int i=0; i<row; i++) {
         int value = (m * nMatrix[i] * nMatrix[row]) + ((l -m) * nMatrix[row] * matrix[i][row]);
 
@@ -218,82 +170,17 @@ void generate_orbit_matrix(vector<vector<int>> matrix, int row, vector<vector<in
         equation.push_back(value);
         linEq.push_back(equation);
     }
-    vector<vector<rational<int>>> tmpMat = reducedRowEchelonForm(linEq);
-    vector<vector<rational<int>>> mat;
 
-    // remove zero rows
-    for (int i=0; i<tmpMat.size(); i++) {
-        bool t=true;
-        for (int j=0; j<tmpMat[i].size(); j++) {
-            if (tmpMat[i][j].numerator() != 0) t=false;
-        }
-        if (t == false) mat.push_back(tmpMat[i]);
-    }
+    tuple<bool, vector<vector<rational<int>>>, vector<int>> rat = create_rational_system(linEq, tmpSol, row);
+    bool test = get<0>(rat); 
+    vector<vector<rational<int>>> mat2 = get<1>(rat);
+    vector<int> sys = get<2>(rat);
 
-    // transpose matrix
-    vector<vector<rational<int>>> transposeMatrix;
-    for (int i=0; i<mat[0].size(); i++) {
-        vector<rational<int>> tmpVector;
-        for (int j=0; j<mat.size(); j++) {
-            tmpVector.push_back(mat[j][i]);
-        }
-        transposeMatrix.push_back(tmpVector);
-    }
-
-    int index = 0;
-    vector<rational<int>> tmp(mat.size());
-    tmp[index] = 1;
-    vector<int> sys;
-
-    vector<vector<rational<int>>> tmpTransposeMatrix;    
-    for (int i=0; i<transposeMatrix.size(); i++) {
-        if (operator==(transposeMatrix[i], tmp)) {    
-            sys.push_back(i);
-            if ((index + 1) != mat.size()) {
-                tmp[index] = 0;
-                index++;
-                tmp[index] = 1;
-            }
-            else {
-                tmp.clear();
-                tmp.push_back(-9999999);
-            }
-        }
-        else {
-            tmpTransposeMatrix.push_back(transposeMatrix[i]);
-        }
-    }
-
-    // transpose matrix
-    vector<vector<rational<int>>> mat2;
-    for (int i=0; i<tmpTransposeMatrix[0].size(); i++) {
-        vector<rational<int>> tmpVector;
-        for (int j=0; j<tmpTransposeMatrix.size(); j++) {
-            tmpVector.push_back(tmpTransposeMatrix[j][i]);
-        }
-        mat2.push_back(tmpVector);
-    }    
-
-    // when linear system is int and vector is rational, then pass
-    bool testRational = false;
-    for (int i=0; i<mat2.size(); i++) {
-        if (testRational == true) break;
-        bool testDenom = true;
-        for (int j=0; j<mat2[i].size() - 1; j++) {
-            if (mat2[i][j].denominator() != 1) testDenom = false;
-        }
-        if (testDenom == true && mat2[i][mat2[0].size() - 1].denominator() != 1) {
-            testRational = true;
-            break;
-        }
-    }
-
-    if (testRational == true)  {
-        return;
-    }
+    if (test == true) return;
 
     vector<int> v;
     vector<int> end;
+
     for (int i=0; i<mat2[0].size()-1; i++) {
         v.push_back(0);
         end.push_back(-1);
@@ -581,23 +468,24 @@ void generate_fix_matrices(vector<vector<int>> matrix, int row, vector<vector<in
             for (int i=0; i<(o-linEqFixSolution[j][3]); i++) newRow.push_back(0);
             for (int i=0; i<(linEqFixSolution[j][3]); i++) newRow.push_back(1);
 
-            matrix[row] = newRow;
+            vector<vector<int>> newMatrix(matrix);
+            newMatrix[row] = newRow;
 
             // transpose matrix
-            for(int i=row+1; i<f; i++) matrix[i][row] = matrix[row][i];
+            for(int i=row+1; i<f; i++) newMatrix[i][row] = newMatrix[row][i];
             for(int i=f; i<f+o; i++) {
-                if (matrix[row][i] == 1) matrix[i][row] = p;
-                else matrix[i][row] = 0;
+                if (newMatrix[row][i] == 1) newMatrix[i][row] = p;
+                else newMatrix[i][row] = 0;
             }
             
             if (row + 1 == f) {
                 vector<int> orbitRow(newRow.begin() + f, newRow.end());
-                generate_orbit_matrix(matrix, f, fix_col_permutation(orbitRow, orbitIndexes));
+                generate_orbit_matrix(newMatrix, f, fix_col_permutation(orbitRow, orbitIndexes));
             }
             else {
                 vector<int> fixRow(newRow.begin(), newRow.begin() + f);
                 vector<int> orbitRow(newRow.begin() + f, newRow.end());
-                generate_fix_matrices(matrix, row + 1, fix_col_permutation(fixRow, fixIndexes), fix_col_permutation(orbitRow, orbitIndexes));
+                generate_fix_matrices(newMatrix, row + 1, fix_col_permutation(fixRow, fixIndexes), fix_col_permutation(orbitRow, orbitIndexes));
             }
         }
     }
@@ -635,77 +523,13 @@ void generate_fix_matrices(vector<vector<int>> matrix, int row, vector<vector<in
             linEq.push_back(equation);
         }
 
-        vector<vector<rational<int>>> tmpMat = reducedRowEchelonForm(linEq);
-        vector<vector<rational<int>>> mat;
+        tuple<bool, vector<vector<rational<int>>>, vector<int>> rat = create_rational_system(linEq, tmpSol, row);
 
-        // remove zero rows
-        for (int i=0; i<tmpMat.size(); i++) {
-            bool t=true;
-            for (int j=0; j<tmpMat[i].size(); j++) {
-                if (tmpMat[i][j].numerator() != 0) t=false;
-            }
-            if (t == false) mat.push_back(tmpMat[i]);
-        }
+        bool test = get<0>(rat); 
+        vector<vector<rational<int>>> mat2 = get<1>(rat);
+        vector<int> sys = get<2>(rat);
 
-        // transpose matrix
-        vector<vector<rational<int>>> transposeMatrix;
-        for (int i=0; i<mat[0].size(); i++) {
-            vector<rational<int>> tmpVector;
-            for (int j=0; j<mat.size(); j++) {
-                tmpVector.push_back(mat[j][i]);
-            }
-            transposeMatrix.push_back(tmpVector);
-        }
-
-        int index = 0;
-        vector<rational<int>> tmp(mat.size());
-        tmp[index] = 1;
-        vector<int> sys;
-
-        vector<vector<rational<int>>> tmpTransposeMatrix;    
-        for (int i=0; i<transposeMatrix.size(); i++) {
-            if (transposeMatrix[i] == tmp) {    
-                sys.push_back(i);
-                if ((index + 1) != mat.size()) {
-                    tmp[index] = 0;
-                    index++;
-                    tmp[index] = 1;
-                }
-                else {
-                    tmp.clear();
-                }
-            }
-            else {
-                tmpTransposeMatrix.push_back(transposeMatrix[i]);
-            }
-        }
-
-        // transpose matrix
-        vector<vector<rational<int>>> mat2;
-        for (int i=0; i<tmpTransposeMatrix[0].size(); i++) {
-            vector<rational<int>> tmpVector;
-            for (int j=0; j<tmpTransposeMatrix.size(); j++) {
-                tmpVector.push_back(tmpTransposeMatrix[j][i]);
-            }
-            mat2.push_back(tmpVector);
-        }    
-
-        // when linear system is int and vector is rational, then pass
-        bool testRational = false;
-        for (int i=0; i<mat2.size(); i++) {
-            if (testRational == true) break;
-            bool testDenom = true;
-            for (int j=0; j<mat2[i].size() - 1; j++) {
-                if (mat2[i][j].denominator() != 1) testDenom = false;
-            }
-            if (testDenom == true && mat2[i][mat2[0].size() - 1].denominator() != 1) {
-                testRational = true;
-                break;
-            }
-        }
-        if (testRational == true)  {
-            return;
-        }
+        if (test == true) return;
 
         vector<int> v(mat2[0].size() - 1);
         vector<int> end; 
@@ -1015,150 +839,12 @@ int generate(int nn, int kk, int ll, int mm, int pp, int ff, bool debug) {
     return load_number_solutions();
 }
 
-int test() {
-    clock_t begin = clock();
-
-    if (generate(15, 6, 1, 3, 3, 3, false) == 1) cout << "SRG(15,6,1,3,3,3) OK" << endl;
-    else cout << "SRG(15,6,1,3,3,3) FAIL" << endl;
-
-    if (generate(25, 12, 5, 6, 3, 1, false) == 9) cout << "SRG(25,12,5,6,3,1) OK" << endl;
-    else cout << "SRG(25,12,5,6,3,1) FAIL" << endl;
-
-    if (generate(25, 12, 5, 6, 3, 4, false) == 4) cout << "SRG(25,12,5,6,3,4) OK" << endl;
-    else cout << "SRG(25,12,5,6,3,4) FAIL" << endl;
-
-    if (generate(29, 14, 6, 7, 3, 5, false) == 1) cout << "SRG(29,14,6,7,3,5) OK" << endl;
-    else cout << "SRG(29,14,6,7,3,5) FAIL" << endl;
-
-    if (generate(26, 10, 3, 4, 3, 2, false) == 3) cout << "SRG(26,10,3,4,3,2) OK" << endl;
-    else cout << "SRG(26,10,3,4,3,2) FAIL" << endl;
-
-    if (generate(26, 10, 3, 4, 3, 8, false) == 0) cout << "SRG(26,10,3,4,3,8) OK" << endl;
-    else cout << "SRG(26,10,3,4,3,8) FAIL" << endl;
-
-    if (generate(28, 12, 6, 4, 3, 1, false) == 4) cout << "SRG(26,12,6,4,3,1) OK" << endl;
-    else cout << "SRG(26,12,6,4,3,1) FAIL" << endl;
-
-    if (generate(28, 12, 6, 4, 3, 4, false) == 0) cout << "SRG(26,12,6,4,3,4) OK" << endl;
-    else cout << "SRG(26,12,6,4,3,4) FAIL" << endl;
-
-    if (generate(28, 12, 6, 4, 3, 7, false) == 0) cout << "SRG(26,12,6,4,3,7) OK" << endl;
-    else cout << "SRG(26,12,6,4,3,7) FAIL" << endl;
-
-    if (generate(28, 12, 6, 4, 3, 10, false) == 2) cout << "SRG(26,12,6,4,3,10) OK" << endl;
-    else cout << "SRG(26,12,6,4,3,10) FAIL" << endl;
-
-    if (generate(35, 16, 6, 8, 3, 2, false) == 18) cout << "SRG(35,16,6,8,3,2) OK" << endl;
-    else cout << "SRG(35,16,6,8,3,2) FAIL" << endl;
-
-    if (generate(35, 16, 6, 8, 3, 5, false) == 3) cout << "SRG(35,16,6,8,3,5) OK" << endl;
-    else cout << "SRG(35,16,6,8,3,5) FAIL" << endl;
-
-    if (generate(35, 16, 6, 8, 3, 8, false) == 1) cout << "SRG(35,16,6,8,3,8) OK" << endl;
-    else cout << "SRG(35,16,6,8,3,8) FAIL" << endl;
-
-    if (generate(35, 18, 9, 9, 3, 2, false) == 18) cout << "SRG(35,18,9,9,3,2) OK" << endl;
-    else cout << "SRG(35,18,9,9,3,2) FAIL" << endl;
-
-    if (generate(35, 18, 9, 9, 3, 5, false) == 3) cout << "SRG(35,18,9,9,3,5) OK" << endl;
-    else cout << "SRG(35,18,9,9,3,5) FAIL" << endl;
-
-    if (generate(35, 18, 9, 9, 3, 8, false) == 1) cout << "SRG(35,18,9,9,3,8) OK" << endl;
-    else cout << "SRG(35,18,9,9,3,8) FAIL" << endl;
-
-    if (generate(36, 14, 4, 6, 3, 3, false) == 3) cout << "SRG(36,14,4,6,3,3) OK" << endl;
-    else cout << "SRG(36,14,4,6,3,3) FAIL" << endl;
-
-    if (generate(36, 14, 4, 6, 3, 6, false) == 0) cout << "SRG(36,14,4,6,3,6) OK" << endl;
-    else cout << "SRG(36,14,4,6,3,3) FAIL" << endl;
-
-    if (generate(36, 14, 4, 6, 3, 9, false) == 1) cout << "SRG(36,14,4,6,3,9) OK" << endl;
-    else cout << "SRG(36,14,4,6,3,9) FAIL" << endl;
-
-    if (generate(36, 15, 6, 6, 3, 3, false) == 30) cout << "SRG(36,15,6,6,3,3) OK" << endl;
-    else cout << "SRG(36,15,6,6,3,3) FAIL" << endl;
-
-    if (generate(36, 15, 6, 6, 3, 6, false) == 4) cout << "SRG(36,15,6,6,3,6) OK" << endl;
-    else cout << "SRG(36,15,6,6,3,6) FAIL" << endl;
-
-    if (generate(36, 15, 6, 6, 3, 9, false) == 1) cout << "SRG(36,15,6,6,3,9) OK" << endl;
-    else cout << "SRG(36,15,6,6,3,9) FAIL" << endl;
-
-    if (generate(40, 12, 2, 4, 3, 1, false) == 9) cout << "SRG(40,12,2,4,3,1) OK" << endl;
-    else cout << "SRG(40,12,2,4,3,1) FAIL" << endl;
-
-    if (generate(40, 12, 2, 4, 3, 4, false) == 5) cout << "SRG(40,12,2,4,3,4) OK" << endl;
-    else cout << "SRG(40,12,2,4,3,4) FAIL" << endl;
-
-    if (generate(40, 12, 2, 4, 3, 7, false) == 1) cout << "SRG(40,12,2,4,3,7) OK" << endl;
-    else cout << "SRG(40,12,2,4,3,7) FAIL" << endl;
-
-    if (generate(40, 12, 2, 4, 3, 13, false) == 1) cout << "SRG(40,12,2,4,3,13) OK" << endl;
-    else cout << "SRG(40,12,2,4,3,13) FAIL" << endl;
-
-    if (generate(45, 12, 3, 3, 3, 3, false) == 5) cout << "SRG(45,12,3,3,3,3) OK" << endl;
-    else cout << "SRG(45,12,3,3,3,3) FAIL" << endl;
-
-    if (generate(45, 12, 3, 3, 3, 6, false) == 6) cout << "SRG(45,12,3,3,3,6) OK" << endl;
-    else cout << "SRG(45,12,3,3,3,6) FAIL" << endl;
-
-    if (generate(45, 12, 3, 3, 3, 9, false) == 2) cout << "SRG(45,12,3,3,3,9) OK" << endl;
-    else cout << "SRG(45,12,3,3,3,9) FAIL" << endl;
-
-    if (generate(37, 18, 8, 9, 3, 1, false) == 18) cout << "SRG(37,18,8,9,3,1) OK" << endl;
-    else cout << "SRG(36,18,8,9,3,1) FAIL" << endl;
-
-    if (generate(41, 20, 9, 10, 3, 5, false) == 18) cout << "SRG(41,20,9,10,3,5) OK" << endl;
-    else cout << "SRG(41,20,9,10,3,5) FAIL" << endl;
-
-    if (generate(45, 22, 10, 11, 3, 9, false) == 7) cout << "SRG(45,22,10,11,3,9) OK" << endl;
-    else cout << "SRG(45,22,10,11,3,9) FAIL" << endl;
-
-    if (generate(49, 18, 7, 6, 3, 1, false) == 595) cout << "SRG(49,18,7,6,3,1) OK" << endl;
-    else cout << "SRG(49,18,7,6,3,1) FAIL" << endl;
-
-    if (generate(49, 18, 7, 6, 3, 4, false) == 107) cout << "SRG(49,18,7,6,3,4) OK" << endl;
-    else cout << "SRG(49,18,7,6,3,4) FAIL" << endl;
-
-    if (generate(49, 18, 7, 6, 3, 7, false) == 4) cout << "SRG(49,18,7,6,3,7) OK" << endl;
-    else cout << "SRG(49,18,7,6,3,7) FAIL" << endl;
-
-    if (generate(49, 24, 11, 12, 3, 1, false) == 5029) cout << "SRG(49,24,11,12,3,1) OK" << endl;
-    else cout << "SRG(49,24,11,12,3,1) FAIL" << endl;
-
-    if (generate(49, 24, 11, 12, 3, 4, false) == 124) cout << "SRG(49,24,11,12,3,4) OK" << endl;
-    else cout << "SRG(49,24,11,12,3,4) FAIL" << endl;
-
-    if (generate(49, 24, 11, 12, 3, 7, false) == 40) cout << "SRG(49,24,11,12,3,7) OK" << endl;
-    else cout << "SRG(49,24,11,12,3,7) FAIL" << endl;
-
-    if (generate(50, 21, 8, 9, 3, 2, false) == 5043) cout << "SRG(50,21,8,9,3,2) OK" << endl;
-    else cout << "SRG(50,21,8,9,3,2) FAIL" << endl;
-
-    if (generate(50, 21, 8, 9, 3, 5, false) == 106) cout << "SRG(50,21,8,9,3,5) OK" << endl;
-    else cout << "SRG(50,21,8,9,3,5) FAIL" << endl;
-
-    if (generate(50, 21, 8, 9, 3, 8, false) == 35) cout << "SRG(50,21,8,9,3,8) OK" << endl;
-    else cout << "SRG(50,21,8,9,3,8) FAIL" << endl;
-
-    if (generate(53, 26, 15, 16, 3, 5, false) == 1229) cout << "SRG(53,26,15,16,3,5) OK" << endl;
-    else cout << "SRG(53,26,15,16,3,5) FAIL" << endl;
-
-    clock_t end = clock();
-    double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-    cout << "time: " << elapsed_secs << endl;
-}
-
-
 int main() {
     // generate(15, 6, 1, 3, 3, 3, true);
     // generate(28, 12, 6, 4, 3, 10, true); 
     // generate(35, 16, 6, 8, 3, 2, true);
     // generate(37, 18, 8, 9, 3, 1, true);
     // generate(41, 20, 9, 10, 3, 5, true);
-    
-    test();
+    small_tests();
     return 0;
 }
-
- 

@@ -1,4 +1,5 @@
 #include <vector>
+#include <tuple>
 #include <boost/rational.hpp>
 
 using namespace std;
@@ -18,3 +19,4 @@ vector<vector<rational<int>>> reducedRowEchelonForm(vector<vector<int>> matrix);
 vector<int> checkSysOrbit(vector<vector<rational<int>>> mat, vector<int> solution);
 vector<int> checkSysFix(vector<vector<rational<int>>> mat, vector<int> solution);
 vector<int> next(vector<int> v, int b);
+tuple<bool, vector<vector<rational<int>>>, vector<int>> create_rational_system(vector<vector<int>> linEq, vector<int> tmpSol, int row);

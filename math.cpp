@@ -1,6 +1,7 @@
 #include <vector>
 #include <boost/rational.hpp>
 #include <iostream>
+#include <tuple>
 
 #include "math.hpp"
 
@@ -214,4 +215,78 @@ vector<vector<rational<int>>> reducedRowEchelonForm(vector<vector<int>> matrix) 
     }
 
     return newMatrix;
+}
+
+tuple<bool, vector<vector<rational<int>>>, vector<int>> create_rational_system(vector<vector<int>> linEq, vector<int> tmpSol, int row) {
+
+    vector<vector<rational<int>>> tmpMat = reducedRowEchelonForm(linEq);
+    vector<vector<rational<int>>> mat;
+
+    // remove zero rows
+    for (int i=0; i<tmpMat.size(); i++) {
+        bool t=true;
+        for (int j=0; j<tmpMat[i].size(); j++) {
+            if (tmpMat[i][j].numerator() != 0) t=false;
+        }
+        if (t == false) mat.push_back(tmpMat[i]);
+    }
+
+    // transpose matrix
+    vector<vector<rational<int>>> transposeMatrix;
+    for (int i=0; i<mat[0].size(); i++) {
+        vector<rational<int>> tmpVector;
+        for (int j=0; j<mat.size(); j++) {
+            tmpVector.push_back(mat[j][i]);
+        }
+        transposeMatrix.push_back(tmpVector);
+    }
+
+    int index = 0;
+    vector<rational<int>> tmp(mat.size());
+    tmp[index] = 1;
+    vector<int> sys;
+
+    vector<vector<rational<int>>> tmpTransposeMatrix;    
+    for (int i=0; i<transposeMatrix.size(); i++) {
+        if (operator==(transposeMatrix[i], tmp)) {    
+            sys.push_back(i);
+            if ((index + 1) != mat.size()) {
+                tmp[index] = 0;
+                index++;
+                tmp[index] = 1;
+            }
+            else {
+                tmp.clear();
+                tmp.push_back(-9999999);
+            }
+        }
+        else {
+            tmpTransposeMatrix.push_back(transposeMatrix[i]);
+        }
+    }
+
+    // transpose matrix
+    vector<vector<rational<int>>> mat2;
+    for (int i=0; i<tmpTransposeMatrix[0].size(); i++) {
+        vector<rational<int>> tmpVector;
+        for (int j=0; j<tmpTransposeMatrix.size(); j++) {
+            tmpVector.push_back(tmpTransposeMatrix[j][i]);
+        }
+        mat2.push_back(tmpVector);
+    }    
+
+    // when linear system is int and vector is rational, then pass
+    bool testRational = false;
+    for (int i=0; i<mat2.size(); i++) {
+        if (testRational == true) break;
+        bool testDenom = true;
+        for (int j=0; j<mat2[i].size() - 1; j++) {
+            if (mat2[i][j].denominator() != 1) testDenom = false;
+        }
+        if (testDenom == true && mat2[i][mat2[0].size() - 1].denominator() != 1) {
+            testRational = true;
+            break;
+        }
+    }
+    return make_tuple(testRational, mat2, sys);
 }
